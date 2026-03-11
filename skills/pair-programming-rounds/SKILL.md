@@ -19,6 +19,7 @@ digraph rounds {
     "Assign ownership" [shape=box];
     "Execute phases" [shape=box];
     "All phases done?" [shape=diamond];
+    "Retro" [shape=box];
     "More work?" [shape=diamond];
     "Done" [shape=doublecircle];
 
@@ -26,13 +27,14 @@ digraph rounds {
     "Assign ownership" -> "Execute phases";
     "Execute phases" -> "All phases done?";
     "All phases done?" -> "Execute phases" [label="no, next phase"];
-    "All phases done?" -> "More work?" [label="yes"];
+    "All phases done?" -> "Retro" [label="yes"];
+    "Retro" -> "More work?";
     "More work?" -> "Brainstorm" [label="yes, new round"];
     "More work?" -> "Done" [label="no"];
 }
 ```
 
-A round ends ONLY when all its phases are complete. The only exception is if the plan gets reworked and phases are removed. New rounds always start fresh with brainstorming.
+A round ends ONLY when all its phases are complete (or the round is explicitly abandoned — see **Abort/Reset** below). New rounds always start fresh with brainstorming.
 
 ## First Message of a Session
 
@@ -79,6 +81,14 @@ This stays consistent across rounds within a session. Only revisit if the projec
 - [ ] Space explored — alternatives were considered, not just the first idea
 - [ ] Testing strategy agreed — libraries, test types, and verification approach confirmed
 
+**Phase size guardrails:**
+Phases should be small enough to complete in a single focused work session. During brainstorming, check:
+- If a phase has **more than 7 tasks**, suggest splitting it into two phases
+- If a phase touches **more than 3 unrelated areas** of the codebase, it's probably two phases
+- If you can't describe the phase goal in one sentence, it's too broad
+
+These are soft limits — the user can override them. But flag it: "This phase has 10 tasks — want to split it so we get a checkpoint in the middle?"
+
 **Task ownership — decide explicitly for every task:**
 
 | Default owner | Work type |
@@ -88,6 +98,14 @@ This stays consistent across rounds within a session. Only revisit if the projec
 | Both | Design decisions, architecture, ambiguous tasks |
 
 These are defaults. Every task needs an explicit owner. If ownership is ambiguous, discuss it and get agreement BEFORE work begins. This is a hard rule.
+
+**Ownership pattern learning:**
+Over multiple rounds, notice patterns in how the user assigns ownership and record them in the **Ownership Preferences** section of the progress file. Examples:
+- "User always owns database migrations"
+- "User prefers Claude handles all test writing"
+- "User wants to co-own anything touching the API layer"
+
+When assigning ownership in future rounds, reference these patterns: "Last round you preferred to own the DB work — same for this round?" This saves time and shows attentiveness. The user can always override — preferences are suggestions, not rules.
 
 ## Phase 2: Execute
 
@@ -119,6 +137,19 @@ When the user has a new idea during a phase:
 2. Recommend where it fits with reasoning (e.g. "this touches the same code we're about to change, so doing it now avoids rework" or "this is independent — let's slot it into phase 3")
 3. The user makes the final call
 
+## Phase 3: Retro
+
+When all phases in a round are complete, run a quick retrospective **before** archiving the progress file. This keeps the skill adaptive to the user's working style.
+
+Ask the user these three questions (keep it lightweight — not a formal ceremony):
+1. **What worked well?** — What parts of this round felt smooth or productive?
+2. **What should we adjust?** — Anything about pacing, ownership splits, phase sizes, or communication that felt off?
+3. **Any preferences to carry forward?** — Things like "I prefer smaller phases", "skip the output format question", "always let me handle DB migrations"
+
+Record the answers in the progress file before archiving. Carry actionable preferences forward into the **Ownership Preferences** section of the new round's progress file so they influence future rounds.
+
+The retro should be 2-3 minutes, not a lengthy discussion. If the user wants to skip it, that's fine — note "retro skipped" in the archive and move on.
+
 ## Session State Tracking
 
 At every check-in, restate:
@@ -133,25 +164,121 @@ If conversation drifts off-plan, gently redirect:
 
 Nothing gets lost between rounds, sessions, or context compactions. Claude maintains state on disk.
 
-**Progress file:** At the start of each session, create (or update) a file at `docs/pair-progress.md` in the project directory. This file is the source of truth for resuming work.
+### Round Naming
 
-Update this file:
+Every round gets a unique, sequential name: **Round 1**, **Round 2**, **Round 3**, etc. Use these names consistently in progress files, check-ins, and conversation. Never reuse a round number.
+
+### Progress Files
+
+Each round gets its own progress file to prevent stale state from previous rounds causing confusion:
+
+- **Active round:** `docs/pair-progress.md` — only ever contains the **current round's** state
+- **Completed rounds:** When a round ends, rename the progress file to `docs/pair-progress-round-N.md` (e.g., `docs/pair-progress-round-1.md`) and create a fresh `docs/pair-progress.md` for the next round
+
+**At the start of a new round:**
+1. If `docs/pair-progress.md` exists and contains a completed round, archive it to `docs/pair-progress-round-N.md`
+2. Create a fresh `docs/pair-progress.md` with only:
+   - The new round number
+   - A one-line reference to the previous round file (if any)
+   - Testing strategy carried forward from the previous round (if still applicable)
+   - Any open items or deferred ideas carried forward from the previous round
+3. Do NOT carry over phase tracking, task lists, or conversation context from the previous round — these belong to that round's archive
+
+**Update `docs/pair-progress.md` during a round:**
 - At the end of every phase (what was completed, what's next)
-- At the end of every round (full round summary)
 - Whenever a meaningful decision is made (architecture choice, scope change, ownership change, design trade-off resolved)
 - Whenever the plan changes (new phases added, scope adjusted)
 - When the user corrects something in the progress file (their memory wins, update immediately)
+- Proactively before long conversations or context compactions
 
-**The progress file must always contain:**
-1. **Current state** — what round/phase/task we're in, who is doing what
-2. **Completed work** — summary of what was finished, key decisions made, and why
-3. **Open items** — things to bring up later, deferred ideas, unresolved questions
-4. **Testing strategy** — agreed libraries, test types, verification approach (so it survives session boundaries)
-5. **Conversation context** — brief summary of what was being discussed, any in-flight decisions
+**At the end of a round:**
+1. Write the full round summary to `docs/pair-progress.md`
+2. Add a `## Status: COMPLETE` heading at the very top of the file (before the round number). This signals to future agent runs that the file is an archive and should not be read in detail
+3. Rename it to `docs/pair-progress-round-N.md`
+4. If starting a new round, create a fresh `docs/pair-progress.md` as described above
 
-**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match.
+**The active progress file must use this template:**
 
-**Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Review this list at the start of each new round and surface anything relevant.
+```markdown
+# Round N
+
+> Previous round: [docs/pair-progress-round-M.md](docs/pair-progress-round-M.md) (omit if first round)
+
+## Current State
+- **Phase:** [phase name]
+- **Status:** [Brainstorming | Executing | Paused | Retro]
+- **Current task:** [task description]
+- **Owner:** [Claude | User | Both]
+
+## Phases
+| # | Phase | Status |
+|---|-------|--------|
+| 1 | [name] | [pending / in progress / done] |
+| 2 | [name] | [pending / in progress / done] |
+
+## Completed Work
+- [Summary of finished work, key decisions, and reasoning]
+
+## Open Items
+- [Deferred ideas, unresolved questions, things to bring up later]
+
+## Testing Strategy
+- **Approach:** [RED-GREEN TDD / other]
+- **Libraries:** [list]
+- **Verification:** [how to confirm correctness]
+
+## Conversation Context
+- [Brief summary of current discussion and in-flight decisions]
+
+## Running Reminders
+- [Things to bring up later, follow-up questions, user mentions]
+
+## Ownership Preferences
+- [Patterns learned about what the user prefers to own vs. delegate — carried forward across rounds]
+```
+
+Always use this exact structure. Do not add, remove, or rename sections. Fill in or leave blank — but keep every heading present so future reads parse reliably.
+
+**On session start:**
+1. Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing
+2. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match
+3. If the user says they want to start a new round, archive the existing progress file before proceeding
+4. If `docs/pair-progress.md` does not exist, check for archived round files (`docs/pair-progress-round-*.md`) to determine the last round number — but only read their filenames, not their contents. Start the next round at N+1
+5. Do NOT read archived round file contents unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session
+
+### Pausing and Resuming a Round
+
+When the user needs to context-switch mid-round (e.g., "I need to work on something else", "let's pause this"):
+1. Update `docs/pair-progress.md` with full current state — make sure every section is filled in
+2. Set the **Status** field in the progress file to `Paused`
+3. Add a **Pause context** note in the Conversation Context section explaining where work stopped and what the immediate next step would be when resuming
+4. Confirm with the user: "Round N is paused. When you're ready to pick it back up, just say so."
+
+When resuming a paused round:
+1. Read `docs/pair-progress.md` — the `Paused` status tells you this is a mid-round resume, not a new session
+2. Summarize where things left off, including the pause context
+3. Confirm with the user before continuing from where they stopped
+4. Set status back to `Executing`
+
+A paused round is NOT archived. It stays as the active `docs/pair-progress.md` until it is completed or abandoned.
+
+### Abandoning a Round
+
+Sometimes a round's approach is fundamentally wrong and continuing doesn't make sense. When the user says something like "let's scrap this", "start over", or "this approach isn't working":
+
+1. Confirm with the user: "Are you sure you want to abandon Round N? We can start fresh with a new round."
+2. If confirmed, write a brief summary of what was attempted and why it was abandoned to the progress file
+3. Set the status to `Abandoned` (not `COMPLETE`) and add a one-line reason
+4. Archive it to `docs/pair-progress-round-N.md` — abandoned rounds are still archived for reference
+5. Create a fresh `docs/pair-progress.md` for the next round, carrying forward:
+   - Open items and reminders (the work is abandoned, not the context)
+   - Testing strategy
+   - Ownership preferences
+   - A note referencing the abandoned round and why it was scrapped
+
+Do NOT abandon a round without explicit user confirmation. If the user is just frustrated with a phase, suggest reworking the plan first — abandoning is a last resort.
+
+**Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Carry this forward when archiving — open reminders get copied into the new round's progress file. Review this list at the start of each new round and surface anything relevant.
 
 ## Red Flags — You're Doing It Wrong
 
@@ -166,6 +293,13 @@ Update this file:
 - Losing track of deferred ideas or things to bring up later
 - Not updating the progress file before a long conversation or at phase/round boundaries
 - Starting a new session without reading the progress file
+- Starting a new round without archiving the previous round's progress file
+- Carrying over stale phase/task state from a completed round into a new round's progress file
+- Reading archived round files (`pair-progress-round-N.md`) when not asked — they are marked `Status: COMPLETE` and should be skipped
+- Skipping the retro at round end without offering it to the user
+- Abandoning a round without explicit user confirmation
+- Ignoring ownership preferences learned from previous rounds
+- Creating phases with 7+ tasks without suggesting a split
 
 ## Quick Reference
 
@@ -178,5 +312,8 @@ Update this file:
 | New idea mid-phase | Recommend placement with reasoning, user decides |
 | Conversation drifts | Gently redirect, offer to slot into later phase |
 | End of phase | Update progress file with completed work and next steps |
-| All phases done | Update progress file with round summary. More work? New round with fresh brainstorm |
+| All phases done | Run retro, archive progress file to `pair-progress-round-N.md`, create fresh `pair-progress.md`. More work? New round with fresh brainstorm |
+| User needs to context-switch | Write full state, set status to `Paused`, note next step in pause context |
+| Resuming paused round | Read progress file, summarize pause context, confirm with user, set status to `Executing` |
+| User wants to abandon round | Confirm, write summary + reason, set status to `Abandoned`, archive, start fresh |
 | Conversation getting long | Proactively write full state to progress file before compaction |
