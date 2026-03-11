@@ -162,8 +162,9 @@ Each round gets its own progress file to prevent stale state from previous round
 
 **At the end of a round:**
 1. Write the full round summary to `docs/pair-progress.md`
-2. Rename it to `docs/pair-progress-round-N.md`
-3. If starting a new round, create a fresh `docs/pair-progress.md` as described above
+2. Add a `## Status: COMPLETE` heading at the very top of the file (before the round number). This signals to future agent runs that the file is an archive and should not be read in detail
+3. Rename it to `docs/pair-progress-round-N.md`
+4. If starting a new round, create a fresh `docs/pair-progress.md` as described above
 
 **The active progress file must always contain:**
 1. **Current round and phase** — round number, current phase, current task, who is doing what
@@ -172,7 +173,7 @@ Each round gets its own progress file to prevent stale state from previous round
 4. **Testing strategy** — agreed libraries, test types, verification approach (so it survives session boundaries)
 5. **Conversation context** — brief summary of what was being discussed, any in-flight decisions
 
-**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match. If the user says they want to start a new round, archive the existing progress file before proceeding.
+**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match. If the user says they want to start a new round, archive the existing progress file before proceeding. Do NOT read archived round files (`docs/pair-progress-round-N.md`) unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session.
 
 **Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Carry this forward when archiving — open reminders get copied into the new round's progress file. Review this list at the start of each new round and surface anything relevant.
 
@@ -191,6 +192,7 @@ Each round gets its own progress file to prevent stale state from previous round
 - Starting a new session without reading the progress file
 - Starting a new round without archiving the previous round's progress file
 - Carrying over stale phase/task state from a completed round into a new round's progress file
+- Reading archived round files (`pair-progress-round-N.md`) when not asked — they are marked `Status: COMPLETE` and should be skipped
 
 ## Quick Reference
 
