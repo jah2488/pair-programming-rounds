@@ -32,6 +32,57 @@ Claude will walk you through the structure and start brainstorming.
 
 ## How it works
 
+```mermaid
+flowchart TD
+    S[Session Start] --> RP{Progress file exists?}
+    RP -->|yes| Resume[Resume from saved state]
+    RP -->|no| Fresh[Fresh start]
+    Resume --> Confirm[Confirm state with user]
+    Confirm --> R
+    Fresh --> Explain[Explain Round > Phase > Task structure]
+    Explain --> R
+
+    subgraph R [Round]
+        direction TB
+        B[Brainstorm] --> OF[Ask output format]
+        OF --> Explore[Explore & plan\none question at a time]
+        Explore --> Test[Confirm testing strategy]
+        Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing}
+        Checklist -->|no| Explore
+        Checklist -->|yes| P1
+
+        subgraph P1 [Phase]
+            direction TB
+            Plan[State the plan\nassign task owners] --> Work
+
+            subgraph Work [Tasks]
+                direction LR
+                CT[Claude's tasks] ~~~ UT[Your tasks] ~~~ BT[Collaborative tasks]
+            end
+
+            Work --> Claude_Done[Claude finishes a task]
+            Claude_Done --> Summary[Summary + snippets\n+ reasoning + extension points\n+ verification instructions]
+            Summary --> CheckUser[Check in on your tasks]
+
+            Work --> User_Done[You finish a task]
+            User_Done --> Issues[Any issues? Anything change?]
+            Issues --> Restate[Restate position\nconfirm next steps]
+
+            Work --> Idea[New idea mid-phase]
+            Idea --> Slot[Claude recommends where it fits]
+            Slot --> YouDecide[You decide]
+        end
+
+        P1 --> PhaseDone{All phases done?}
+        PhaseDone -->|no, next phase| P1
+        PhaseDone -->|yes| Save[Update progress file]
+    end
+
+    Save --> More{More work?}
+    More -->|yes| R
+    More -->|no| Done[Done]
+```
+
 1. **Brainstorm** — Claude asks questions one at a time to understand the work. You decide output format (Markdown or HTML), agree on testing strategy, and assign task ownership.
 2. **Execute** — Work phases in order. Claude summarizes its work with key snippets, explains *why* it made decisions, shows you where to extend the code, and tells you exactly how to verify correctness.
 3. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Pick up right where you left off in the next session.
