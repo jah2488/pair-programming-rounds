@@ -91,6 +91,26 @@ flowchart TD
 3. **Retro** — Quick retrospective at round end: what worked, what to adjust, ownership preferences to carry forward, and an energy check.
 4. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Completed rounds are archived to `docs/pair-progress-round-N.md`. Pick up right where you left off.
 
+## Why this skill?
+
+AI coding assistants are powerful, but the default interaction pattern — "tell the AI what to build, review what it produces" — has real costs.
+
+**Developers who delegate too much understand their code less.** A [METR study (2025)](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/) found that experienced developers were actually 19% *slower* with AI tools, partly because AI-assisted coding led to more idle time and less cognitive engagement. The [AI deskilling paradox](https://cacm.acm.org/news/the-ai-deskilling-paradox/) (Communications of the ACM) documents how routine AI delegation erodes the skills you need most when things go wrong — debugging, architectural reasoning, and diagnosis.
+
+**AI fatigue is real.** Long sessions with AI assistants produce a specific kind of exhaustion: you stop reading carefully, approve things you shouldn't, and lose track of what the code actually does. This isn't laziness — it's the natural result of sustained high-cognitive-load interaction without structure.
+
+This skill is designed around research from several fields to counteract these problems:
+
+- **[Cognitive Load Theory](https://onlinelibrary.wiley.com/doi/abs/10.1207/s15516709cog1202_4)** (Sweller, 1988) — Working memory is limited. The skill reduces extraneous load through chunking, tiered summaries, and the [inverted pyramid](https://www.nngroup.com/articles/inverted-pyramid/) (Nielsen Norman Group) — always leading with the most important information so you can stop reading when you have what you need.
+
+- **[The generation effect](https://pmc.ncbi.nlm.nih.gov/articles/PMC3556209/)** — You remember things better when you generate them yourself than when you passively read them. This is why the skill asks you to articulate architectural reasoning at key decisions, rather than just approving Claude's recommendation.
+
+- **[The testing effect](https://pubmed.ncbi.nlm.nih.gov/16507066/)** (Roediger & Karpicke, 2006) — Retrieving knowledge from memory strengthens retention more than re-studying. The skill's consolidation pauses ("summarize what we just built in one sentence") use this to help lock in understanding at round boundaries.
+
+- **[The paradox of choice](https://works.swarthmore.edu/fac-psychology/198/)** (Schwartz, 2004) — Too many options leads to decision paralysis. The skill's recommend-and-probe pattern presents one recommendation with a targeted question, mentioning alternatives exist without laying them all out unless asked.
+
+The goal isn't to slow you down or add ceremony — it's to keep you in the driver's seat on the decisions that matter, while letting Claude handle the work that doesn't require your judgment. The structure exists so that at the end of a session, you understand what was built and *why*, not just that it passes tests.
+
 ## Feedback
 
 This is a work in progress! If you try it out, I'd love to hear:
