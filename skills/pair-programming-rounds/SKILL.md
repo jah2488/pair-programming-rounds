@@ -173,7 +173,12 @@ Each round gets its own progress file to prevent stale state from previous round
 4. **Testing strategy** — agreed libraries, test types, verification approach (so it survives session boundaries)
 5. **Conversation context** — brief summary of what was being discussed, any in-flight decisions
 
-**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match. If the user says they want to start a new round, archive the existing progress file before proceeding. Do NOT read archived round files (`docs/pair-progress-round-N.md`) unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session.
+**On session start:**
+1. Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing
+2. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match
+3. If the user says they want to start a new round, archive the existing progress file before proceeding
+4. If `docs/pair-progress.md` does not exist, check for archived round files (`docs/pair-progress-round-*.md`) to determine the last round number — but only read their filenames, not their contents. Start the next round at N+1
+5. Do NOT read archived round file contents unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session
 
 **Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Carry this forward when archiving — open reminders get copied into the new round's progress file. Review this list at the start of each new round and surface anything relevant.
 
