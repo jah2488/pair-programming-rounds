@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Where does coupling concentrate in the game engine?</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; margin: 0; }
+        article { padding: 1rem 2rem; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Palatino LT STD", "Book Antiqua", Georgia, serif; }
+        .link { stroke: #999; stroke-opacity: 0.6; fill: none; }
+        .link.highlighted { stroke: #333; stroke-opacity: 1; }
+        .link.dimmed { stroke-opacity: 0.1; }
+        .node circle { stroke: #333; stroke-width: 1.5px; cursor: pointer; }
+        .node text { font-size: 0.75rem; fill: #333; pointer-events: none; }
+        .node.dimmed circle { opacity: 0.15; }
+        .node.dimmed text { opacity: 0.15; }
+        .annotation { font-size: 0.7rem; fill: #666; font-style: italic; }
+        .detail-panel { position: absolute; right: 2rem; top: 8rem; width: 220px; font-family: et-book, Palatino, Georgia, serif; font-size: 0.8rem; color: #333; opacity: 0; transition: opacity 0.15s; }
+        .detail-panel.visible { opacity: 1; }
+        .detail-panel h3 { margin: 0 0 0.3rem 0; font-size: 0.9rem; }
+        .detail-panel .metric { color: #666; margin: 0.15rem 0; }
+        .detail-panel .imports-list { margin: 0.5rem 0 0 0; padding: 0; list-style: none; }
+        .detail-panel .imports-list li { margin: 0.1rem 0; color: #666; }
+        .detail-panel .imports-list li::before { content: "← "; color: #999; }
+        .detail-panel .exports-list li::before { content: "→ "; color: #999; }
+        figcaption { font-size: 0.85rem; color: #666; margin-top: 0.5rem; }
+        .data-table { margin-top: 2rem; border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+        .data-table th { text-align: left; border-bottom: 1px solid #333; padding: 0.3rem 0.8rem; font-weight: normal; color: #666; }
+        .data-table td { padding: 0.3rem 0.8rem; border: none; }
+        .data-table tr:last-child td { border-bottom: 1px solid #333; }
+        .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>Where does coupling concentrate in the game engine?</h1>
+        <p class="subtitle">Module dependency analysis — 8 modules, 14 dependency edges</p>
+
+        <section>
+            <figure>
+                <div id="viz" style="position: relative;"></div>
+                <figcaption>
+                    The <strong>core</strong> module is the highest-coupling node with 6 dependents.
+                    The render → physics path creates a tight cluster that would be difficult to
+                    refactor independently. Audio is the most isolated module — a good candidate
+                    for extraction.
+                </figcaption>
+            </figure>
+        </section>
+
+        <div class="detail-panel" id="detail">
+            <h3 id="detail-name"></h3>
+            <p class="metric" id="detail-deps"></p>
+            <p class="metric" id="detail-lines"></p>
+            <p class="metric" id="detail-complexity"></p>
+            <strong style="font-size: 0.75rem; color: #666;">Imports from:</strong>
+            <ul class="imports-list" id="detail-imports"></ul>
+            <strong style="font-size: 0.75rem; color: #666;">Depended on by:</strong>
+            <ul class="imports-list exports-list" id="detail-dependents"></ul>
+        </div>
+
+        <section>
+            <h2>Data table</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Module</th><th style="text-align:right">Lines</th><th style="text-align:right">Complexity</th><th style="text-align:right">Dependencies</th><th style="text-align:right">Dependents</th><th style="text-align:right">Coupling score</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>core</td><td class="num">820</td><td class="num">6</td><td class="num">0</td><td class="num">6</td><td class="num">0.75</td></tr>
+                    <tr><td>scene</td><td class="num">540</td><td class="num">14</td><td class="num">3</td><td class="num">3</td><td class="num">0.63</td></tr>
+                    <tr><td>render</td><td class="num">680</td><td class="num">18</td><td class="num">2</td><td class="num">3</td><td class="num">0.56</td></tr>
+                    <tr><td>physics</td><td class="num">450</td><td class="num">22</td><td class="num">2</td><td class="num">2</td><td class="num">0.44</td></tr>
+                    <tr><td>input</td><td class="num">220</td><td class="num">8</td><td class="num">2</td><td class="num">2</td><td class="num">0.38</td></tr>
+                    <tr><td>audio</td><td class="num">310</td><td class="num">10</td><td class="num">1</td><td class="num">1</td><td class="num">0.19</td></tr>
+                    <tr><td>ui</td><td class="num">390</td><td class="num">12</td><td class="num">3</td><td class="num">1</td><td class="num">0.31</td></tr>
+                    <tr><td>network</td><td class="num">280</td><td class="num">15</td><td class="num">1</td><td class="num">2</td><td class="num">0.25</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size: 0.75rem; color: #999; margin-top: 0.5rem;">
+                Coupling score = (dependents × dependencies) / total_modules². Data derived from import analysis of src/.
+            </p>
+        </section>
+    </article>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        const nodes = [
+            { id: "core", lines: 820, complexity: 6, group: 0 },
+            { id: "scene", lines: 540, complexity: 14, group: 1 },
+            { id: "render", lines: 680, complexity: 18, group: 1 },
+            { id: "physics", lines: 450, complexity: 22, group: 1 },
+            { id: "input", lines: 220, complexity: 8, group: 2 },
+            { id: "audio", lines: 310, complexity: 10, group: 2 },
+            { id: "ui", lines: 390, complexity: 12, group: 3 },
+            { id: "network", lines: 280, complexity: 15, group: 3 },
+        ];
+
+        const links = [
+            { source: "render", target: "core", weight: 8 },
+            { source: "scene", target: "core", weight: 12 },
+            { source: "physics", target: "core", weight: 6 },
+            { source: "input", target: "core", weight: 4 },
+            { source: "audio", target: "core", weight: 3 },
+            { source: "ui", target: "core", weight: 5 },
+            { source: "render", target: "scene", weight: 7 },
+            { source: "physics", target: "scene", weight: 5 },
+            { source: "physics", target: "render", weight: 4 },
+            { source: "ui", target: "scene", weight: 3 },
+            { source: "ui", target: "input", weight: 6 },
+            { source: "input", target: "scene", weight: 2 },
+            { source: "network", target: "core", weight: 3 },
+            { source: "network", target: "scene", weight: 2 },
+        ];
+
+        // Compute dependents for sizing
+        const dependentCount = {};
+        nodes.forEach(n => dependentCount[n.id] = 0);
+        links.forEach(l => dependentCount[typeof l.target === 'string' ? l.target : l.target.id]++);
+
+        const width = 700, height = 450;
+        const colorScale = d3.scaleOrdinal()
+            .domain([0, 1, 2, 3])
+            .range(["#4a6741", "#8b7355", "#5f7a8a", "#7a6b8a"]);
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => Math.sqrt(d.lines) / 3 + 10));
+
+        const link = svg.append("g")
+            .selectAll("line")
+            .data(links)
+            .join("line")
+            .attr("class", "link")
+            .attr("stroke-width", d => Math.sqrt(d.weight));
+
+        const node = svg.append("g")
+            .selectAll("g")
+            .data(nodes)
+            .join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        node.append("circle")
+            .attr("r", d => Math.sqrt(d.lines) / 3 + 4)
+            .attr("fill", d => colorScale(d.group))
+            .attr("fill-opacity", 0.7);
+
+        node.append("text")
+            .attr("dy", d => -(Math.sqrt(d.lines) / 3 + 8))
+            .attr("text-anchor", "middle")
+            .text(d => d.id);
+
+        // Annotation for core
+        const annotationG = svg.append("g").attr("class", "annotation").attr("opacity", 0);
+        const annotationText = annotationG.append("text");
+
+        // Hover interaction
+        const detail = d3.select("#detail");
+        node.on("mouseenter", function(event, d) {
+            const connected = new Set();
+            const importNames = [];
+            const dependentNames = [];
+            links.forEach(l => {
+                const sid = typeof l.source === 'string' ? l.source : l.source.id;
+                const tid = typeof l.target === 'string' ? l.target : l.target.id;
+                if (sid === d.id) { connected.add(tid); importNames.push(tid); }
+                if (tid === d.id) { connected.add(sid); dependentNames.push(sid); }
+            });
+            connected.add(d.id);
+
+            node.classed("dimmed", n => !connected.has(n.id));
+            link.classed("dimmed", l => {
+                const sid = typeof l.source === 'string' ? l.source : l.source.id;
+                const tid = typeof l.target === 'string' ? l.target : l.target.id;
+                return sid !== d.id && tid !== d.id;
+            });
+            link.classed("highlighted", l => {
+                const sid = typeof l.source === 'string' ? l.source : l.source.id;
+                const tid = typeof l.target === 'string' ? l.target : l.target.id;
+                return sid === d.id || tid === d.id;
+            });
+
+            d3.select("#detail-name").text(d.id);
+            d3.select("#detail-deps").text(`${importNames.length} imports, ${dependentNames.length} dependents`);
+            d3.select("#detail-lines").text(`${d.lines} lines of code`);
+            d3.select("#detail-complexity").text(`Cyclomatic complexity: ${d.complexity}`);
+            d3.select("#detail-imports").selectAll("li").remove();
+            d3.select("#detail-imports").selectAll("li").data(importNames).join("li").text(x => x);
+            d3.select("#detail-dependents").selectAll("li").remove();
+            d3.select("#detail-dependents").selectAll("li").data(dependentNames).join("li").text(x => x);
+            detail.classed("visible", true);
+        }).on("mouseleave", function() {
+            node.classed("dimmed", false);
+            link.classed("dimmed", false).classed("highlighted", false);
+            detail.classed("visible", false);
+        });
+
+        simulation.on("tick", () => {
+            link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            node.attr("transform", d => `translate(${d.x},${d.y})`);
+
+            // Position annotation near core
+            const core = nodes.find(n => n.id === "core");
+            if (core) {
+                annotationG.attr("opacity", 1)
+                    .attr("transform", `translate(${core.x + 40}, ${core.y + 30})`);
+                annotationText.text("← highest coupling: 6 dependents");
+            }
+        });
+
+        function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+        function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+        function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+    </script>
+</body>
+</html>

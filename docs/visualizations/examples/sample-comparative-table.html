@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Which data layer approach best fits the game engine?</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; margin: 0; }
+        article { padding: 1rem 2rem; max-width: 800px; }
+        .tufte-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 1.5rem 0; }
+        .tufte-table th {
+            text-align: left;
+            padding: 0.6rem 1rem;
+            border-top: 2px solid #333;
+            border-bottom: 1px solid #333;
+            font-weight: normal;
+            color: #666;
+            font-size: 0.8rem;
+            letter-spacing: 0.03em;
+        }
+        .tufte-table th.num { text-align: right; }
+        .tufte-table th.sortable { cursor: pointer; }
+        .tufte-table th.sortable:hover { color: #333; }
+        .tufte-table th .sort-arrow { font-size: 0.65rem; color: #999; margin-left: 0.2rem; }
+        .tufte-table td {
+            padding: 0.5rem 1rem;
+            border: none;
+            vertical-align: top;
+            color: #333;
+        }
+        .tufte-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .tufte-table td.approach { font-weight: bold; }
+        .tufte-table tbody tr { transition: background-color 0.1s; }
+        .tufte-table tbody tr:hover { background-color: rgba(0, 0, 0, 0.02); }
+        .tufte-table tbody tr:last-child td { border-bottom: 2px solid #333; }
+
+        .rating { display: inline-block; min-width: 3rem; }
+        .rating-bar { display: inline-block; height: 8px; vertical-align: middle; margin-right: 0.4rem; opacity: 0.6; }
+        .rating-high { background: #8b4513; }
+        .rating-medium { background: #8b7355; }
+        .rating-low { background: #5f7a8a; }
+
+        .cell-detail { font-size: 0.75rem; color: #999; display: block; margin-top: 0.15rem; max-height: 0; overflow: hidden; transition: max-height 0.2s; }
+        td:hover .cell-detail { max-height: 3rem; }
+
+        .sidenote { float: right; clear: right; margin-right: -34%; width: 30%; margin-top: 0; margin-bottom: 1rem; font-size: 0.75rem; color: #666; line-height: 1.4; }
+        .sidenote-number { counter-increment: sidenote-counter; }
+        .sidenote-number::after { content: counter(sidenote-counter); font-size: 0.6rem; vertical-align: super; }
+        .sidenote::before { content: counter(sidenote-counter) " "; font-size: 0.6rem; vertical-align: super; }
+
+        figcaption { font-size: 0.85rem; color: #666; margin-top: 0.5rem; }
+
+        .summary-bar { margin: 1rem 0; }
+        .summary-bar-label { font-size: 0.75rem; color: #666; display: inline-block; width: 140px; }
+        .summary-bar-track { display: inline-block; width: 300px; height: 12px; background: #f0efe8; vertical-align: middle; }
+        .summary-bar-fill { display: inline-block; height: 12px; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>Which data layer approach best fits the game engine?</h1>
+        <p class="subtitle">Comparing three architectural patterns across five criteria — game engine with 8 modules, ~3,700 LOC</p>
+
+        <section>
+            <figure>
+                <table class="tufte-table" id="comparison">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-col="0">Approach <span class="sort-arrow"></span></th>
+                            <th class="sortable num" data-col="1">Impl. complexity <span class="sort-arrow"></span></th>
+                            <th class="sortable num" data-col="2">Coupling <span class="sort-arrow"></span></th>
+                            <th class="sortable num" data-col="3">Testability <span class="sort-arrow"></span></th>
+                            <th class="sortable num" data-col="4">Migration risk <span class="sort-arrow"></span></th>
+                            <th class="sortable num" data-col="5">Runtime overhead <span class="sort-arrow"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                    </tbody>
+                </table>
+
+                <figcaption>
+                    <strong>Event sourcing</strong> trades implementation complexity for the lowest coupling
+                    and easiest migration path — ideal if the game needs replay or undo mechanics.
+                    <strong>Repository pattern</strong> is the simplest to build but creates moderate
+                    coupling to the data layer. <strong>Active Record</strong> is fastest to prototype
+                    but hardest to test and migrate away from.
+                </figcaption>
+            </figure>
+
+            <span class="sidenote-number"></span>
+            <span class="sidenote">
+                Ratings are relative to this specific codebase.
+                "High" testability means the approach enables unit testing without database fixtures;
+                "Low" means tests require a running database or extensive mocking.
+            </span>
+
+            <span class="sidenote-number"></span>
+            <span class="sidenote">
+                Migration risk reflects how difficult it would be to switch away from this pattern
+                after 6 months of development. Event sourcing's append-only log makes schema changes
+                trivial; Active Record's tight model-table coupling makes them expensive.
+            </span>
+        </section>
+
+        <section>
+            <h2>Overall fitness</h2>
+            <div class="summary-bar">
+                <span class="summary-bar-label">Event sourcing</span>
+                <span class="summary-bar-track"><span class="summary-bar-fill" style="width: 72%; background: #5f7a8a;"></span></span>
+                <span style="font-size: 0.75rem; color: #666; margin-left: 0.5rem;">3.6 / 5</span>
+            </div>
+            <div class="summary-bar">
+                <span class="summary-bar-label">Repository pattern</span>
+                <span class="summary-bar-track"><span class="summary-bar-fill" style="width: 66%; background: #5f7a8a;"></span></span>
+                <span style="font-size: 0.75rem; color: #666; margin-left: 0.5rem;">3.3 / 5</span>
+            </div>
+            <div class="summary-bar">
+                <span class="summary-bar-label">Active Record</span>
+                <span class="summary-bar-track"><span class="summary-bar-fill" style="width: 48%; background: #8b7355;"></span></span>
+                <span style="font-size: 0.75rem; color: #666; margin-left: 0.5rem;">2.4 / 5</span>
+            </div>
+            <p style="font-size: 0.75rem; color: #999; margin-top: 0.5rem;">
+                Fitness score: unweighted average across all five criteria (High=5, Medium=3, Low=1). Hover cells above for rationale.
+            </p>
+        </section>
+    </article>
+
+    <script>
+        const approaches = [
+            {
+                name: "Event sourcing",
+                values: [
+                    { rating: "High", score: 5, detail: "Requires event store, projections, and replay logic" },
+                    { rating: "Low", score: 1, detail: "Modules subscribe to events — no direct dependencies" },
+                    { rating: "High", score: 5, detail: "Pure event handlers are trivially testable" },
+                    { rating: "Low", score: 1, detail: "Append-only log means schema changes are additive" },
+                    { rating: "Medium", score: 3, detail: "Event replay adds ~2ms per frame rebuild" },
+                ],
+            },
+            {
+                name: "Active Record",
+                values: [
+                    { rating: "Medium", score: 3, detail: "Familiar pattern — fast to prototype" },
+                    { rating: "High", score: 5, detail: "Models are tightly coupled to table schema" },
+                    { rating: "Low", score: 1, detail: "Tests require database fixtures or heavy mocking" },
+                    { rating: "Medium", score: 3, detail: "Schema changes require coordinated model updates" },
+                    { rating: "Low", score: 1, detail: "Direct queries — minimal runtime overhead" },
+                ],
+            },
+            {
+                name: "Repository pattern",
+                values: [
+                    { rating: "Low", score: 1, detail: "Simple interfaces with concrete implementations" },
+                    { rating: "Medium", score: 3, detail: "Interface boundary reduces coupling; impl still knows schema" },
+                    { rating: "Medium", score: 3, detail: "Interfaces enable mock repositories for testing" },
+                    { rating: "Low", score: 1, detail: "Interface stays stable; only implementations change" },
+                    { rating: "Low", score: 1, detail: "Thin abstraction — negligible overhead" },
+                ],
+            },
+        ];
+
+        const ratingToWidth = { "High": 40, "Medium": 26, "Low": 14 };
+        const ratingToClass = { "High": "rating-high", "Medium": "rating-medium", "Low": "rating-low" };
+
+        const tbody = document.getElementById("table-body");
+
+        function renderTable(data) {
+            tbody.innerHTML = "";
+            data.forEach(approach => {
+                const tr = document.createElement("tr");
+                const nameTd = document.createElement("td");
+                nameTd.className = "approach";
+                nameTd.textContent = approach.name;
+                tr.appendChild(nameTd);
+
+                approach.values.forEach(v => {
+                    const td = document.createElement("td");
+                    td.className = "num";
+                    td.innerHTML = `<span class="rating"><span class="rating-bar ${ratingToClass[v.rating]}" style="width: ${ratingToWidth[v.rating]}px;"></span>${v.rating}</span><span class="cell-detail">${v.detail}</span>`;
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        renderTable(approaches);
+
+        // Sortable columns
+        let sortCol = -1, sortAsc = true;
+        document.querySelectorAll("th.sortable").forEach(th => {
+            th.addEventListener("click", () => {
+                const col = parseInt(th.dataset.col);
+                if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
+
+                const sorted = [...approaches].sort((a, b) => {
+                    if (col === 0) {
+                        return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+                    }
+                    const av = a.values[col - 1].score, bv = b.values[col - 1].score;
+                    return sortAsc ? av - bv : bv - av;
+                });
+
+                renderTable(sorted);
+                document.querySelectorAll("th .sort-arrow").forEach(s => s.textContent = "");
+                th.querySelector(".sort-arrow").textContent = sortAsc ? " ▲" : " ▼";
+            });
+        });
+    </script>
+</body>
+</html>
