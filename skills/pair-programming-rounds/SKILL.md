@@ -133,25 +133,48 @@ If conversation drifts off-plan, gently redirect:
 
 Nothing gets lost between rounds, sessions, or context compactions. Claude maintains state on disk.
 
-**Progress file:** At the start of each session, create (or update) a file at `docs/pair-progress.md` in the project directory. This file is the source of truth for resuming work.
+### Round Naming
 
-Update this file:
+Every round gets a unique, sequential name: **Round 1**, **Round 2**, **Round 3**, etc. Use these names consistently in progress files, check-ins, and conversation. Never reuse a round number.
+
+### Progress Files
+
+Each round gets its own progress file to prevent stale state from previous rounds causing confusion:
+
+- **Active round:** `docs/pair-progress.md` — only ever contains the **current round's** state
+- **Completed rounds:** When a round ends, rename the progress file to `docs/pair-progress-round-N.md` (e.g., `docs/pair-progress-round-1.md`) and create a fresh `docs/pair-progress.md` for the next round
+
+**At the start of a new round:**
+1. If `docs/pair-progress.md` exists and contains a completed round, archive it to `docs/pair-progress-round-N.md`
+2. Create a fresh `docs/pair-progress.md` with only:
+   - The new round number
+   - A one-line reference to the previous round file (if any)
+   - Testing strategy carried forward from the previous round (if still applicable)
+   - Any open items or deferred ideas carried forward from the previous round
+3. Do NOT carry over phase tracking, task lists, or conversation context from the previous round — these belong to that round's archive
+
+**Update `docs/pair-progress.md` during a round:**
 - At the end of every phase (what was completed, what's next)
-- At the end of every round (full round summary)
 - Whenever a meaningful decision is made (architecture choice, scope change, ownership change, design trade-off resolved)
 - Whenever the plan changes (new phases added, scope adjusted)
 - When the user corrects something in the progress file (their memory wins, update immediately)
+- Proactively before long conversations or context compactions
 
-**The progress file must always contain:**
-1. **Current state** — what round/phase/task we're in, who is doing what
-2. **Completed work** — summary of what was finished, key decisions made, and why
+**At the end of a round:**
+1. Write the full round summary to `docs/pair-progress.md`
+2. Rename it to `docs/pair-progress-round-N.md`
+3. If starting a new round, create a fresh `docs/pair-progress.md` as described above
+
+**The active progress file must always contain:**
+1. **Current round and phase** — round number, current phase, current task, who is doing what
+2. **Completed work this round** — summary of what was finished in this round, key decisions made, and why
 3. **Open items** — things to bring up later, deferred ideas, unresolved questions
 4. **Testing strategy** — agreed libraries, test types, verification approach (so it survives session boundaries)
 5. **Conversation context** — brief summary of what was being discussed, any in-flight decisions
 
-**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match.
+**On session start:** Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match. If the user says they want to start a new round, archive the existing progress file before proceeding.
 
-**Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Review this list at the start of each new round and surface anything relevant.
+**Running reminder list:** Keep a section in the progress file for things Claude needs to bring up later (deferred ideas, follow-up questions, things the user mentioned in passing). Carry this forward when archiving — open reminders get copied into the new round's progress file. Review this list at the start of each new round and surface anything relevant.
 
 ## Red Flags — You're Doing It Wrong
 
@@ -166,6 +189,8 @@ Update this file:
 - Losing track of deferred ideas or things to bring up later
 - Not updating the progress file before a long conversation or at phase/round boundaries
 - Starting a new session without reading the progress file
+- Starting a new round without archiving the previous round's progress file
+- Carrying over stale phase/task state from a completed round into a new round's progress file
 
 ## Quick Reference
 
@@ -178,5 +203,5 @@ Update this file:
 | New idea mid-phase | Recommend placement with reasoning, user decides |
 | Conversation drifts | Gently redirect, offer to slot into later phase |
 | End of phase | Update progress file with completed work and next steps |
-| All phases done | Update progress file with round summary. More work? New round with fresh brainstorm |
+| All phases done | Archive progress file to `pair-progress-round-N.md`, create fresh `pair-progress.md`. More work? New round with fresh brainstorm |
 | Conversation getting long | Proactively write full state to progress file before compaction |
