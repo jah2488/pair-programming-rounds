@@ -141,9 +141,10 @@ Then confirm with the user as currently specified.
 Ask the user whether they want responses in **Markdown** (default, stays in terminal) or **HTML** (written as files, opened in browser — better for complex plans, visual work, design mockups). This can change between rounds.
 - In HTML mode: plans, mockups, design docs, and summaries go to HTML files. Conversational check-ins stay as normal terminal text.
 - The user can override this per-round if they want more or less in HTML.
+- When the discussion involves architecture, data flow, system design, or comparing multidimensional tradeoffs, use the `pair-programming-rounds:tufte-visualize` subskill to generate Tufte-style interactive HTML visualizations that help the programmer reason through the problem. This applies regardless of the chosen output format — visualizations are always HTML files saved to `docs/visualizations/`.
 
 **Step 2 — Explore and plan:**
-Do not rush — thoroughness over speed. Use the superpowers:brainstorming skill to guide exploration. Group related questions — never ask more than 2 questions in a single message.
+Do not rush — thoroughness over speed. Use the superpowers:brainstorming skill to guide exploration. Use the `pair-programming-rounds:tufte-visualize` subskill when the brainstorming involves understanding system structure, dependencies, or complex data — a well-designed visualization can replace 20 minutes of verbal back-and-forth. Group related questions — never ask more than 2 questions in a single message.
 
 You must cover:
 - What are we building/fixing/changing?
@@ -231,6 +232,10 @@ Then restate current position: what phase we're in, what's left, what's next.
 Output a Tier 1 status line showing phase progress (same format as mid-task check-ins).
 Confirm next steps before proceeding.
 
+### Visualization during execution
+
+When working on architecturally significant changes, complex debugging, or multi-file refactors, consider using the `pair-programming-rounds:tufte-visualize` subskill to generate a visualization that helps the programmer (and Claude) understand the problem space. Offer, don't impose — suggest when a visualization would genuinely aid comprehension, not as a default for every task.
+
 ### Mid-task check-ins
 
 When Claude completes a task that is NOT the last task in a phase, output a Tier 1 status line showing phase progress:
@@ -268,6 +273,8 @@ For sessions with 3+ completed rounds, add a sparkline trend line:
 ```
 Velocity: ▃▅▇ (tasks/round trending up)
 ```
+
+For sessions with 3+ phases in the round, consider using the `pair-programming-rounds:tufte-visualize` subskill to generate a round summary visualization — a small-multiples timeline of phases completed, or a before/after architecture comparison if the system structure changed significantly.
 
 Ask the user these questions (keep it lightweight — not a formal ceremony):
 1. **What worked well?** — What parts of this round felt smooth or productive?
@@ -569,6 +576,7 @@ Do NOT abandon a round without explicit user confirmation. If the user is just f
 | Resuming paused round | Read progress file, summarize pause context, confirm with user, set status to `Executing` |
 | User wants to abandon round | Confirm, write summary + reason, set status to `Abandoned`, archive, start fresh |
 | Conversation getting long | Proactively write full state to progress file before compaction |
+| Architecture/system understanding needed | Use `pair-programming-rounds:tufte-visualize` to generate an interactive HTML visualization |
 | Claude finishes a task (not last in phase) | Tier 1 status line with progress bar |
 | Phase transition | Tier 2 summary + visual dashboard of next phase |
 | Round transition | Full round summary dashboard + consolidation pause offer |

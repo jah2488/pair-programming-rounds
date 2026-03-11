@@ -111,6 +111,152 @@ This skill is designed around research from several fields to counteract these p
 
 The goal isn't to slow you down or add ceremony — it's to keep you in the driver's seat on the decisions that matter, while letting Claude handle the work that doesn't require your judgment. The structure exists so that at the end of a session, you understand what was built and *why*, not just that it passes tests.
 
+## Tufte Visualizations
+
+The plugin includes a visualization subskill that generates self-contained HTML files following [Edward Tufte's](https://www.edwardtufte.com/tufte/) design principles. These aren't decorative — they're thinking tools that help you reason about your system during pair programming sessions.
+
+### Why Tufte?
+
+Most auto-generated diagrams are noisy. Gradient-filled boxes, decorative icons, rainbow color schemes — visual elements that look busy but don't help you think. Tufte's principles solve this by demanding that every pixel earn its place:
+
+- **Data-ink ratio** — maximize the share of visual elements that convey information. No drop shadows, no 3D effects, no chartjunk
+- **Small multiples** — compare things by repeating the same visualization with consistent scales, not by cramming everything into one chart
+- **Micro/macro readings** — the overview shows the pattern at a glance; hover/click reveals specifics without leaving the page
+- **Integrated evidence** — annotations live next to the data they describe, not in separate panels or hidden behind clicks
+
+The result is visualizations that are dense with information but easy to read — you see the pattern first, then drill into details on demand.
+
+### What gets generated
+
+Every visualization is a single `.html` file with embedded data. No build step, no server, no dependencies to install — just open it in a browser. The files use [Tufte CSS](https://edwardtufte.github.io/tufte-css/) for typography and [D3.js](https://d3js.org/) for data-driven graphics.
+
+The subskill includes 8 visualization types, each mapped to a specific programming question:
+
+| When you're asking... | Visualization | What it shows |
+|---|---|---|
+| "What depends on what?" | Dependency Map | Force-directed graph of module relationships; hover reveals imports/exports |
+| "Where is the complexity?" | Complexity Dashboard | Small-multiple sparklines per file, arranged by directory |
+| "How does data flow?" | Data Flow Diagram | Layered flow with transformation annotations on edges |
+| "What breaks if I change this?" | Change Impact | Dependency tree colored by risk (coupling × test coverage gap) |
+| "What are the possible states?" | State Machine | States and transitions with guards; happy path emphasized |
+| "Which approach should we pick?" | Comparative Table | Tufte-style table — no vertical rules, sortable, sidenotes |
+| "What happened in what order?" | Timeline | Sequence diagram with proportional time; idle periods compressed |
+| "How big is everything?" | Codebase Treemap | Nested rectangles sized by LOC, colored by chosen metric |
+
+### Example: Dependency Map
+
+A dependency map for a game engine might render like this — a force-directed graph where node size encodes the number of dependents and edges show import relationships:
+
+```
+                         ┌─────────┐
+                    ╶╶╶╶╶│ physics │╶╶╶╶╶╶╶╶╶╶╶╶╶╶╮
+                   ╷     └─────────┘               ╷
+                   ╷          ╷                     ╷
+              ┌─────────┐    ╷               ┌───────────┐
+         ╶╶╶╶╶│  render │╶╶╶╶╶╶╶╶╶╶╶╮       │   audio   │
+        ╷     └─────────┘    ╷       ╷       └───────────┘
+        ╷          ╷         ╷       ╷              ╷
+        ╷     ┌─────────┐   ╷  ┌─────────┐         ╷
+        ╷     │  scene  │╶╶╶╶╶╶│  input  │         ╷
+        ╷     └─────────┘      └─────────┘         ╷
+        ╷          ╷                ╷               ╷
+        ╷          ╷    ┌───────┐   ╷               ╷
+        ╰╶╶╶╶╶╶╶╶╶╶╶╶╶╶│ core  │╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╯
+                        └───────┘
+                     16 dependents
+
+  Hover any node → see its imports, exports, and coupling score
+  Click to freeze → compare two modules side by side
+```
+
+In the actual HTML output, this is an interactive SVG: nodes are draggable, hovering reveals a detail panel in the margin showing exact imports/exports, and edge thickness encodes the number of shared symbols.
+
+### Example: Complexity Dashboard (Small Multiples)
+
+For a codebase with 12 modules, the dashboard shows one sparkline per file — no axes, no labels on individual charts. The pattern is the message:
+
+```
+  auth/login.ts    ▁▂▃▅▇█▇▅▃▂▁▂▃▅▇    auth/session.ts  ▁▁▁▂▂▂▃▃▂▂▁▁▁▁▁▁
+  auth/oauth.ts    ▁▁▂▅█████████▇▅▃    auth/tokens.ts   ▁▁▁▁▁▁▂▂▂▁▁▁▁▁▁▁
+
+  api/routes.ts    ▁▂▃▃▃▂▂▃▃▃▂▂▁▂▂    api/middleware.ts ▁▁▁▂▃▃▃▃▃▃▂▂▁▁▁▁
+  api/validate.ts  ▁▁▂▂▂▂▂▂▂▂▁▁▁▁▁    api/errors.ts    ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+
+  db/queries.ts    ▁▂▃▅▅▅▃▃▅▇█▇▅▃▂    db/migrate.ts    ▁▂▃▂▁▁▁▁▂▃▂▁▁▁▁▁
+  db/models.ts     ▁▁▂▃▃▃▃▃▃▃▃▂▂▁▁    db/seeds.ts      ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+
+  ─────────────────────────────────────────────────────────────────────
+  At a glance: auth/oauth.ts and db/queries.ts are complexity hotspots.
+  Hover any sparkline for exact cyclomatic complexity values per function.
+```
+
+The insight is immediate — two files dominate complexity. In the HTML version, hovering a sparkline reveals per-function breakdowns.
+
+### Example: Comparative Table
+
+When comparing architectural approaches during brainstorming, the table follows Tufte's rules — no vertical rules, minimal horizontal rules, numbers right-aligned:
+
+```
+  Approach          Complexity   Coupling   Testability   Migration risk
+  ─────────────────────────────────────────────────────────────────────
+  Event sourcing           High        Low          High              Low
+  Active Record         Medium       High           Low           Medium
+  Repository pattern       Low     Medium        Medium              Low
+
+  ─────────────────────────────────────────────────────────────────────
+  Event sourcing trades implementation complexity for the lowest coupling
+  and easiest migration path. Repository pattern is the simplest to build
+  but creates moderate coupling to the data layer.
+```
+
+The caption states the insight, not a description. In HTML, columns are sortable and cells expand on hover to show reasoning.
+
+### How it's invoked
+
+The subskill activates in two modes:
+
+**Auto-suggest during brainstorming** — When the discussion involves architecture, dependencies, data flow, or comparing multidimensional tradeoffs, Claude will suggest a specific visualization type and explain why it would help. You can accept, decline, or ask for a different type.
+
+> *"Before we decide on the data layer approach, a dependency map would help us see which modules are most coupled to the current implementation. Want me to generate one?"*
+
+**Explicit during execution** — When you're debugging complex state, planning a multi-file refactor, or need to understand data flow, ask directly:
+
+- *"Visualize the dependencies in the auth module"*
+- *"Show me a state diagram for the checkout flow"*
+- *"Map out what breaks if we change the User model"*
+
+During execution phases, the subskill won't interrupt your flow with unsolicited offers. It suggests only when you're stuck or explicitly exploring.
+
+### Design thinking
+
+The subskill is opinionated about a few things:
+
+**No pie charts.** Tufte's least favorite chart type — angular comparisons are harder to read than length comparisons. Use a table or bar chart instead.
+
+**No animation unless it encodes data.** Spinning loaders, entrance animations, and bouncing transitions are visual noise. The only permitted motion is opacity transitions on hover states.
+
+**Titles are questions, captions are answers.** A visualization titled "Dependency Map" tells you nothing. One titled "Where does coupling concentrate?" followed by a caption "The auth module accounts for 60% of all cross-module imports" tells you everything.
+
+**Printable.** Following Tufte's print-first philosophy, every visualization includes a data table below the graphic so hover-dependent information is also accessible without interaction.
+
+**Colorblind-safe.** Never uses red/green as the only distinguishing colors. Prefers single-hue sequential palettes for quantitative data, with a maximum of 4-5 distinct colors per visualization.
+
+### Output location
+
+Visualizations are saved to `docs/visualizations/` in your project:
+
+```
+docs/
+├── pair-progress.md
+├── pair-progress-round-1.md
+└── visualizations/
+    ├── round-1-brainstorm-dependency-map.html
+    ├── round-1-brainstorm-approach-comparison.html
+    └── round-2-debug-state-machine.html
+```
+
+Each visualization is noted in the active progress file so it's easy to find later.
+
 ## Feedback
 
 This is a work in progress! If you try it out, I'd love to hear:
