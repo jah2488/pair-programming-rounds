@@ -6,7 +6,10 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 
 - **Rounds** — Each round starts with collaborative brainstorming to shape the work
 - **Phases** — Work is broken into phases with tasks assigned to you, Claude, or both
-- **Check-ins** — After every piece of work, Claude provides summaries, code snippets, design reasoning, and verification instructions
+- **Check-ins** — After every piece of work, Claude provides tiered summaries with visual progress dashboards, keeping you informed without overwhelming
+- **Active engagement** — Claude keeps you in the architect's seat with recommend-and-probe patterns, devil's advocate moments, and architecture ownership checks — reducing option paralysis without reducing critical thinking
+- **Adaptive pacing** — Session energy management with break suggestions at natural boundaries, cognitive demand ordering, and AI brain fry detection
+- **Adaptive detail** — Automatically calibrates explanation depth to your expertise, adjustable anytime with "more detail" or "less detail"
 - **Persistence** — Progress is saved to disk so nothing gets lost between sessions or context compactions
 - **Testing** — Defaults to RED-GREEN TDD, confirms testing strategy with you before writing code
 
