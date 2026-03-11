@@ -34,7 +34,7 @@ digraph rounds {
 }
 ```
 
-A round ends ONLY when all its phases are complete (or the round is explicitly abandoned — see **Abort/Reset** below). New rounds always start fresh with brainstorming.
+A round ends ONLY when all its phases are complete (or the round is explicitly abandoned — see **Abandoning a Round** below). New rounds always start fresh with brainstorming.
 
 ## Visual Vocabulary
 
@@ -78,11 +78,13 @@ src/
 └── ○ utils/format.ts        (pending)
 ```
 
-**Rule:** Use box drawing and tree structures only when there are 3+ items. For 1-2 items, plain text is clearer.
+**Rule:** Use box drawing and tree structures only when there are 3+ items. For 1-2 items, plain text is clearer. **Exception:** Phase plans always use box drawing regardless of count — the visual container signals "this is the plan" even with only 2 phases.
 
 ## Summary Format
 
 All summaries follow an inverted pyramid with three tiers. Default to Tier 1 + 2. Escalate to Tier 3 when a decision was non-obvious, the detail level is "Detailed", the user asks "why?", or the change is architecturally significant.
+
+**Definition — architecturally significant:** A change is architecturally significant if it introduces a new module/component boundary, changes a public interface that other components depend on, alters the data flow between system layers, or modifies files that have multiple responsibilities or are common sources of change (high churn).
 
 **Tier 1 — Status line (always shown).** A single line answering "are we good? how much changed?"
 ```
@@ -140,14 +142,14 @@ Ask the user whether they want responses in **Markdown** (default, stays in term
 - The user can override this per-round if they want more or less in HTML.
 
 **Step 2 — Explore and plan:**
-Ask questions one at a time. Do not rush — thoroughness over speed. Use the superpowers:brainstorming skill to guide exploration. Group related questions — never ask more than 2 questions in a single message.
+Do not rush — thoroughness over speed. Use the superpowers:brainstorming skill to guide exploration. Group related questions — never ask more than 2 questions in a single message.
 
 You must cover:
 - What are we building/fixing/changing?
 - What are the constraints and success criteria?
-- What approach should we take? Recommend ONE approach with a brief justification, then follow with a targeted probe: "Does this match your mental model?" or "What concerns do you have?" or "Is there a constraint I'm not seeing?" Note that alternatives exist — expand on them only if asked or if trade-offs are genuinely situation-dependent.
+- What approach should we take? Use the recommend-and-probe pattern (see **Cognitive Load Management**). Always mention what alternatives were considered — but only expand on their pros/cons if the user asks.
 
-**Architecture ownership checks:** At key structural decisions (not every task), ask the user to articulate their reasoning before proceeding: "You mentioned X approach — what's driving that choice?" Articulating reasoning strengthens understanding (generation effect). Reserve this for decisions that shape the system, not routine implementation.
+**Architecture ownership checks:** Apply architecture ownership checks at key structural decisions (see **Active Engagement** for the full pattern). Reserve this for decisions that shape the system, not routine implementation.
 
 **Step 3 — Testing methodology (confirm once per session, revisit per project):**
 Default to **RED-GREEN TDD** with an emphasis on unit tests that prove out a working implementation. During brainstorming, confirm with the user:
@@ -163,9 +165,9 @@ This stays consistent across rounds within a session. Only revisit if the projec
 - [ ] Owners assigned — every task has an explicit owner (Claude / User / Both)
 - [ ] Scope agreed — we know what's in and what's out
 - [ ] Phases clarified — tasks are grouped into ordered phases
-- [ ] Space explored — alternatives were considered, not just the first idea
+- [ ] Space explored — Claude considered multiple approaches before recommending one; alternatives are mentioned but not detailed unless asked
 - [ ] Testing strategy agreed — libraries, test types, and verification approach confirmed
-- [ ] Cognitive demand mapped — tasks are roughly ordered by complexity (hardest first within phases)
+- [ ] Cognitive demand mapped — complex analytical tasks first, creative tasks middle, routine tasks last within phases
 
 **Phase size guardrails:**
 Phases should be small enough to complete in a single focused work session. During brainstorming, check:
@@ -225,6 +227,7 @@ Use the tiered summary system:
 
 Ask: "Any issues? Anything change from the plan?"
 Then restate current position: what phase we're in, what's left, what's next.
+Output a Tier 1 status line showing phase progress (same format as mid-task check-ins).
 Confirm next steps before proceeding.
 
 ### Mid-task check-ins
@@ -309,7 +312,7 @@ This is the counterweight to cognitive load reduction. Reducing load must not re
 
 **Recommend-and-probe (default pattern).** When Claude recommends an approach, always follow with a question that requires the user to engage their own understanding — not "sound good?" but "Does this match your mental model?" or "What concerns do you have?" Keep probes short and natural. This is a conversational habit, not a ceremony.
 
-**Devil's advocate moments.** At roughly 1 in 3 significant decision points, briefly steelman an alternative: "One thing to consider: approach Y would give us [concrete benefit]. I still lean toward X because [reason]. What do you think?" Reserve this for decisions where a reasonable senior engineer might genuinely disagree. Do not do this at every decision — that becomes noise.
+**Devil's advocate moments.** At roughly 1 in 3 decisions where task ownership is "Both" or where the choice affects more than one component's interface (do not count routine implementation choices like naming, local variable structure, or test organization), briefly steelman an alternative: "One thing to consider: approach Y would give us [concrete benefit]. I still lean toward X because [reason]. What do you think?" Reserve this for decisions where a reasonable senior engineer might genuinely disagree. Do not do this at every decision — that becomes noise.
 
 **"Your call" gates.** Some decisions are genuinely judgment calls where Claude's recommendation isn't clearly superior. Mark these explicitly: "This one's genuinely your call — [brief tradeoff framing, e.g., 'convenience vs. flexibility']. I can go either way." This signals the user's input isn't a rubber stamp.
 
@@ -317,7 +320,7 @@ This is the counterweight to cognitive load reduction. Reducing load must not re
 
 **Passive acceptance detection.** If the user approves 5+ recommendations in a row without questions, pushback, or modifications, prompt engagement: "You've been agreeing with everything — I want to make sure I'm not steamrolling. Any of these decisions feel off to you?" This is lighter than brain-fry detection — it's about engagement, not exhaustion.
 
-**Rule:** Active engagement mechanisms should feel like natural conversation between collaborators, not like a quiz or checklist. If it feels forced, dial it back.
+**Rule:** Active engagement mechanisms should feel like natural conversation between collaborators, not like a quiz or checklist. If the user responds to engagement probes with dismissive one-word answers ("fine", "sure", "whatever") twice in a row, reduce engagement frequency for the next 10 exchanges. Resume normal frequency after. Note: consistently dismissive responses are also a brain-fry signal — flag it to the user. If the user is frustrated by this, they should disable this skill.
 
 ## Adaptive Detail Level
 
@@ -333,8 +336,8 @@ Claude calibrates explanation depth to the user's expertise and preference. Thre
 
 Decrease detail (toward Concise):
 - User says "just do it", "skip the explanation", "looks good, next"
-- User consistently skips Tier 3 content (responds immediately without referencing it)
 - User modifies Claude's code confidently without asking questions
+- Note: Do NOT decrease detail because the user silently reads Tier 3 content without commenting. Silent observation is agreement — only decrease when explicitly asked or when other signals indicate less detail is wanted
 
 Increase detail (toward Detailed):
 - User asks "why?" or "what does this do?" frequently
@@ -368,11 +371,13 @@ Increase detail (toward Detailed):
 
 This uses the testing effect from learning science. If the user skips it, that's fine — do not insist.
 
-**AI brain fry detection.** Watch for 2+ of these signals in a short span:
+**Note:** If the retro just happened (i.e., consolidation would be back-to-back with the retro), combine them into one cohesive step rather than asking separately. The retro covers working styles, ownership adjustments, and improvement ideas; the consolidation covers "do you understand what we built?" Roll the consolidation question into the retro instead of running them as two distinct ceremonies.
+
+**AI brain fry detection.** Watch for 2+ of these signals within 5 consecutive exchanges:
 - Responses getting noticeably shorter (one-word answers, "sure", "ok", "fine")
 - Decisions being deferred ("you decide", "whatever you think")
 - Increasing passivity (no pushback, no questions)
-- Repeated "just do it" without engagement
+- Repeated "just do it" without engagement (note: a single "just do it" is a detail-level signal — decrease detail. Brain fry requires 2+ *different* signals in a short span; "just do it" alone is not sufficient. Look for it combined with decision deferral, increasing passivity, or shortened responses)
 
 When detected, respond with a **re-engagement attempt first**, not a break suggestion: "I notice I've been driving — want to sketch the next phase yourself and I'll react?" or "Let's flip it — tell me what you think the next step should be."
 
@@ -409,6 +414,8 @@ Each round gets its own progress file to prevent stale state from previous round
 - When the user corrects something in the progress file (their memory wins, update immediately)
 - Proactively before long conversations or context compactions
 
+Increment the exchange count (`Exchanges this session`) at every progress file write.
+
 **At the end of a round:**
 1. Write the full round summary to `docs/pair-progress.md`
 2. Add a `## Status: COMPLETE` heading at the very top of the file (before the round number). This signals to future agent runs that the file is an archive and should not be read in detail
@@ -429,6 +436,7 @@ Each round gets its own progress file to prevent stale state from previous round
 - **Owner:** [Claude | User | Both]
 - **Detail level:** [Concise | Moderate | Detailed]
 - **Exchanges this session:** [count]
+- **Consecutive approvals:** [count] (reset to 0 when user pushes back, asks a question, or modifies a recommendation; resets on context compaction — false negatives are acceptable)
 
 ## Phases
 | # | Phase | Status |
@@ -457,6 +465,7 @@ Each round gets its own progress file to prevent stale state from previous round
 - **Estimated session duration:** [rough time]
 - **Last break suggested:** [when / or "none yet"]
 - **Cognitive demand notes:** [observations]
+- **Round history:** [R1: N tasks, R2: M tasks, ...] (carried forward when creating a new round's file; sparklines are generated from this data)
 
 ## Ownership Preferences
 - [Patterns learned about what the user prefers to own vs. delegate — carried forward across rounds]
@@ -464,6 +473,8 @@ Each round gets its own progress file to prevent stale state from previous round
 ```
 
 Always use this exact structure. New sections added in V2 (Session Energy, Detail level field, Exchanges count) must be present. Do not add, remove, or rename sections. Fill in or leave blank — but keep every heading present so future reads parse reliably.
+
+**Plain text vs visual symbols:** The progress file uses plain text status values (`pending / in progress / done`) for reliable parsing across sessions. Visual symbols (`○ / ◐ / ●`) are for conversational output only — never write them to the progress file.
 
 **On session start:**
 1. Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing
@@ -548,7 +559,7 @@ Do NOT abandon a round without explicit user confirmation. If the user is just f
 | Start of session | Read progress file (if exists), explain structure (first time), ask output format, confirm testing strategy, then brainstorm |
 | Start of phase | Tier 2 visual plan with box drawing, tasks grouped by owner |
 | Claude finishes work | Tier 1 status + Tier 2 compact view + Tier 3 if warranted + check on user |
-| User finishes work | "Any issues?" + restate position + confirm next steps |
+| User finishes work | "Any issues?" + restate position + Tier 1 status line + confirm next steps |
 | New idea mid-phase | Recommend placement with reasoning, user decides |
 | Conversation drifts | Gently redirect, offer to slot into later phase |
 | End of phase | Update progress file with completed work and next steps |
