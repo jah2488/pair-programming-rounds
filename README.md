@@ -6,11 +6,12 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 
 - **Rounds** — Each round starts with collaborative brainstorming to shape the work
 - **Phases** — Work is broken into phases with tasks assigned to you, Claude, or both
+- **Retros** — Every round ends with a lightweight retrospective to tune working styles, ownership splits, and pacing
 - **Check-ins** — After every piece of work, Claude provides tiered summaries with visual progress dashboards, keeping you informed without overwhelming
 - **Active engagement** — Claude keeps you in the architect's seat with recommend-and-probe patterns, devil's advocate moments, and architecture ownership checks — reducing option paralysis without reducing critical thinking
-- **Adaptive pacing** — Session energy management with break suggestions at natural boundaries, cognitive demand ordering, and AI brain fry detection
-- **Adaptive detail** — Automatically calibrates explanation depth to your expertise, adjustable anytime with "more detail" or "less detail"
-- **Persistence** — Progress is saved to disk so nothing gets lost between sessions or context compactions
+- **Adaptive pacing** — Session energy management with break suggestions at natural boundaries, cognitive demand ordering (analytical → creative → routine), and AI brain fry detection
+- **Adaptive detail** — Automatically calibrates explanation depth to your expertise, adjustable anytime with "more detail" or "less detail". Silent observation is treated as agreement — Claude won't reduce detail just because you're quietly reading
+- **Persistence** — Progress is saved to disk so nothing gets lost between sessions or context compactions. Rounds are archived individually for clean state management
 - **Testing** — Defaults to RED-GREEN TDD, confirms testing strategy with you before writing code
 
 ## Install
@@ -48,9 +49,9 @@ flowchart TD
     subgraph R [Round]
         direction TB
         B[Brainstorm] --> OF[Ask output format]
-        OF --> Explore[Explore & plan\none question at a time]
+        OF --> Explore[Explore & plan\nmax 2 questions per message]
         Explore --> Test[Confirm testing strategy]
-        Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing}
+        Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing\nCognitive demand mapped}
         Checklist -->|no| Explore
         Checklist -->|yes| P1
 
@@ -64,12 +65,10 @@ flowchart TD
             end
 
             Work --> Claude_Done[Claude finishes a task]
-            Claude_Done --> Summary[Summary + snippets\n+ reasoning + extension points\n+ verification instructions]
-            Summary --> CheckUser[Check in on your tasks]
+            Claude_Done --> Summary[Tiered summary\n+ check on user's tasks]
 
             Work --> User_Done[You finish a task]
-            User_Done --> Issues[Any issues? Anything change?]
-            Issues --> Restate[Restate position\nconfirm next steps]
+            User_Done --> Issues[Any issues?\nTier 1 status + restate position]
 
             Work --> Idea[New idea mid-phase]
             Idea --> Slot[Claude recommends where it fits]
@@ -78,7 +77,8 @@ flowchart TD
 
         P1 --> PhaseDone{All phases done?}
         PhaseDone -->|no, next phase| P1
-        PhaseDone -->|yes| Save[Update progress file]
+        PhaseDone -->|yes| Retro[Retro + consolidation]
+        Retro --> Save[Archive progress file]
     end
 
     Save --> More{More work?}
@@ -86,9 +86,10 @@ flowchart TD
     More -->|no| Done[Done]
 ```
 
-1. **Brainstorm** — Claude asks questions one at a time to understand the work. You decide output format (Markdown or HTML), agree on testing strategy, and assign task ownership.
-2. **Execute** — Work phases in order. Claude summarizes its work with key snippets, explains *why* it made decisions, shows you where to extend the code, and tells you exactly how to verify correctness.
-3. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Pick up right where you left off in the next session.
+1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You decide output format (Markdown or HTML), agree on testing strategy, and assign task ownership. Claude recommends one approach and mentions alternatives considered.
+2. **Execute** — Work phases in order, tasks ordered by cognitive demand. Claude summarizes its work with tiered output, explains *why* it made decisions, and checks on your progress.
+3. **Retro** — Quick retrospective at round end: what worked, what to adjust, ownership preferences to carry forward, and an energy check.
+4. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Completed rounds are archived to `docs/pair-progress-round-N.md`. Pick up right where you left off.
 
 ## Feedback
 
@@ -97,6 +98,7 @@ This is a work in progress! If you try it out, I'd love to hear:
 - Did the round/phase/task structure feel natural or rigid?
 - Were Claude's check-ins helpful or too verbose?
 - Did session resumption work smoothly?
+- Did the active engagement (probes, devil's advocate, ownership checks) feel natural or forced?
 - What would you change?
 
 Open an issue or reach out directly.

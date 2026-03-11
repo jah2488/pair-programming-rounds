@@ -1,5 +1,6 @@
 ---
 name: pair-programming-rounds
+version: 3.0.0
 description: Use when starting a work session, picking up new tasks, or when the user wants to collaborate on implementation rather than delegate it entirely. Use when user says "let's pair", "let's work on", or starts a new feature/bugfix session. Manages session pacing, cognitive load, adaptive detail level, and active user engagement.
 ---
 
