@@ -53,7 +53,8 @@ flowchart TD
         Explore --> Test[Confirm testing strategy]
         Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing\nCognitive demand mapped}
         Checklist -->|no| Explore
-        Checklist -->|yes| P1
+        Checklist -->|yes| Formalize[Formalize plan\nvia superpowers:writing-plans\nto docs/plans/]
+        Formalize --> P1
 
         subgraph P1 [Phase]
             direction TB
@@ -87,9 +88,10 @@ flowchart TD
 ```
 
 1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You decide output format (Markdown or HTML), agree on testing strategy, and assign task ownership. Claude recommends one approach and mentions alternatives considered.
-2. **Execute** — Work phases in order, tasks ordered by cognitive demand. Claude summarizes its work with tiered output, explains *why* it made decisions, and checks on your progress.
-3. **Retro** — Quick retrospective at round end: what worked, what to adjust, ownership preferences to carry forward, and an energy check.
-4. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Completed rounds are archived to `docs/pair-progress-round-N.md`. Pick up right where you left off.
+2. **Formalize** — Once brainstorming is complete, Claude uses the `superpowers:writing-plans` skill to create a formal implementation plan in `docs/plans/`. Every round gets a written plan — no ad-hoc planning.
+3. **Execute** — Work phases in order, tasks ordered by cognitive demand. Claude summarizes its work with tiered output, explains *why* it made decisions, and checks on your progress.
+4. **Retro** — Quick retrospective at round end: what worked, what to adjust, ownership preferences to carry forward, and an energy check.
+5. **Persist** — Progress is saved to `docs/pair-progress.md` in your project. Completed rounds are archived to `docs/pair-progress-round-N.md`. Pick up right where you left off.
 
 ## Why this skill?
 

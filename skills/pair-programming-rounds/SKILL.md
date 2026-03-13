@@ -1,6 +1,6 @@
 ---
 name: pair-programming-rounds
-version: 3.0.0
+version: 3.1.0
 description: Use when starting a work session, picking up new tasks, or when the user wants to collaborate on implementation rather than delegate it entirely. Use when user says "let's pair", "let's work on", or starts a new feature/bugfix session. Manages session pacing, cognitive load, adaptive detail level, and active user engagement.
 ---
 
@@ -18,6 +18,7 @@ Structured pair programming organized into **rounds** of work. Each round contai
 digraph rounds {
     "Brainstorm" [shape=box];
     "Assign ownership" [shape=box];
+    "Formalize plan" [shape=box];
     "Execute phases" [shape=box];
     "All phases done?" [shape=diamond];
     "Retro" [shape=box];
@@ -25,7 +26,8 @@ digraph rounds {
     "Done" [shape=doublecircle];
 
     "Brainstorm" -> "Assign ownership";
-    "Assign ownership" -> "Execute phases";
+    "Assign ownership" -> "Formalize plan";
+    "Formalize plan" -> "Execute phases";
     "Execute phases" -> "All phases done?";
     "All phases done?" -> "Execute phases" [label="no, next phase"];
     "All phases done?" -> "Retro" [label="yes"];
@@ -135,7 +137,7 @@ Only explain this once per session. After the first round, just start brainstorm
 ```
 Then confirm with the user as currently specified.
 
-## Phase 1: Brainstorm
+## Stage 1: Brainstorm
 
 **Step 1 — Output format (ask this first):**
 Ask the user whether they want responses in **Markdown** (default, stays in terminal) or **HTML** (written as files, opened in browser — better for complex plans, visual work, design mockups). This can change between rounds.
@@ -171,6 +173,9 @@ This stays consistent across rounds within a session. Only revisit if the projec
 - [ ] Testing strategy agreed — libraries, test types, and verification approach confirmed
 - [ ] Cognitive demand mapped — complex analytical tasks first, creative tasks middle, routine tasks last within phases
 
+**Step 4 — Formalize the plan:**
+When brainstorming is complete and the user has agreed on scope, phases, and ownership, **use the `superpowers:writing-plans` skill to create a formal implementation plan** before starting execution. This is not optional — every round must have a written plan. The plan lives in `docs/plans/` and serves as the authoritative reference for the round's work. Do not skip this step or substitute ad-hoc planning.
+
 **Phase size guardrails:**
 Phases should be small enough to complete in a single focused work session. During brainstorming, check:
 - If a phase has **more than 7 tasks**, suggest splitting it into two phases
@@ -199,7 +204,7 @@ Over multiple rounds, notice patterns in how the user assigns ownership and reco
 
 When assigning ownership in future rounds, reference these patterns: "Last round you preferred to own the DB work — same for this round?" This saves time and shows attentiveness. The user can always override — preferences are suggestions, not rules.
 
-## Phase 2: Execute
+## Stage 2: Execute
 
 Start each phase by outputting a Tier 2 summary showing the phase plan. Use box drawing to group tasks by owner:
 ```
@@ -250,7 +255,7 @@ When the user has a new idea during a phase:
 2. Recommend where it fits with reasoning (e.g. "this touches the same code we're about to change, so doing it now avoids rework" or "this is independent — let's slot it into phase 3")
 3. The user makes the final call
 
-## Phase 3: Retro
+## Stage 3: Retro
 
 When all phases in a round are complete, run a quick retrospective **before** archiving the progress file. This keeps the skill adaptive to the user's working style.
 
@@ -404,11 +409,11 @@ Every round gets a unique, sequential name: **Round 1**, **Round 2**, **Round 3*
 Each round gets its own progress file to prevent stale state from previous rounds causing confusion:
 
 - **Active round:** `docs/pair-progress.md` — only ever contains the **current round's** state
-- **Completed rounds:** When a round ends, rename the progress file to `docs/pair-progress-round-N.md` (e.g., `docs/pair-progress-round-1.md`) and create a fresh `docs/pair-progress.md` for the next round
+- **Completed rounds:** When a round ends, Write the progress file contents to `docs/pair-progress-round-N.md` (e.g., `docs/pair-progress-round-1.md`) and then Write a fresh `docs/pair-progress.md` for the next round
 
 **At the start of a new round:**
-1. If `docs/pair-progress.md` exists and contains a completed round, archive it to `docs/pair-progress-round-N.md`
-2. Create a fresh `docs/pair-progress.md` with only:
+1. If `docs/pair-progress.md` exists and contains a completed round (look for `## Status: COMPLETE`), use the Write tool to create `docs/pair-progress-round-N.md` with its full contents
+2. Use the Write tool to overwrite `docs/pair-progress.md` with only:
    - The new round number
    - A one-line reference to the previous round file (if any)
    - Testing strategy carried forward from the previous round (if still applicable)
@@ -425,10 +430,12 @@ Each round gets its own progress file to prevent stale state from previous round
 Increment the exchange count (`Exchanges this session`) at every progress file write.
 
 **At the end of a round:**
-1. Write the full round summary to `docs/pair-progress.md`
+1. Write the full round summary to `docs/pair-progress.md` (include retro answers if the retro was done)
 2. Add a `## Status: COMPLETE` heading at the very top of the file (before the round number). This signals to future agent runs that the file is an archive and should not be read in detail
-3. Rename it to `docs/pair-progress-round-N.md`
-4. If starting a new round, create a fresh `docs/pair-progress.md` as described above
+3. **Archive the round using the Write tool** — use the Write tool to create `docs/pair-progress-round-N.md` with the full contents of the current `docs/pair-progress.md` (including the `## Status: COMPLETE` header). Do NOT use `mv` or any rename operation — always create the archive as a new file via the Write tool, so even if the next step fails the archive is preserved
+4. **Create a fresh `docs/pair-progress.md`** — use the Write tool to overwrite `docs/pair-progress.md` with a blank template for the next round (see template below). This is a separate step from step 3 — both files must exist after this process completes
+
+These two Write operations (steps 3 and 4) must happen together. If starting a new round in a new session, check whether `docs/pair-progress.md` contains a completed round (look for `## Status: COMPLETE`) and archive it before proceeding.
 
 **The active progress file must use this template:**
 
@@ -442,6 +449,7 @@ Increment the exchange count (`Exchanges this session`) at every progress file w
 - **Status:** [Brainstorming | Executing | Paused | Retro]
 - **Current task:** [task description]
 - **Owner:** [Claude | User | Both]
+- **Plan:** [path to formal plan in docs/plans/, e.g. docs/plans/2026-03-13-feature-name.md]
 - **Detail level:** [Concise | Moderate | Detailed]
 - **Exchanges this session:** [count]
 - **Consecutive approvals:** [count] (reset to 0 when user pushes back, asks a question, or modifies a recommendation; resets on context compaction — false negatives are acceptable)
@@ -486,10 +494,11 @@ Always use this exact structure. New sections added in V2 (Session Energy, Detai
 
 **On session start:**
 1. Read `docs/pair-progress.md` if it exists. Summarize where we left off and confirm with the user before continuing
-2. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match
-3. If the user says they want to start a new round, archive the existing progress file before proceeding
-4. If `docs/pair-progress.md` does not exist, check for archived round files (`docs/pair-progress-round-*.md`) to determine the last round number — but only read their filenames, not their contents. Start the next round at N+1
-5. Do NOT read archived round file contents unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session
+2. If the progress file has a **Plan** field with a path, read that plan file too — it is the authoritative reference for the round's phases and tasks. Use it to orient yourself on what was agreed during brainstorming
+3. If the user's recollection conflicts with what's in the progress file, ask the user what's correct — their memory wins. Update the progress file immediately to match
+4. If the user says they want to start a new round, archive the existing progress file before proceeding
+5. If `docs/pair-progress.md` does not exist, check for archived round files (`docs/pair-progress-round-*.md`) to determine the last round number — but only read their filenames, not their contents. Start the next round at N+1
+6. Do NOT read archived round file contents unless the user specifically asks about a previous round — the `Status: COMPLETE` header marks them as finished and not relevant to the current session
 
 ### Pausing and Resuming a Round
 
@@ -514,8 +523,8 @@ Sometimes a round's approach is fundamentally wrong and continuing doesn't make 
 1. Confirm with the user: "Are you sure you want to abandon Round N? We can start fresh with a new round."
 2. If confirmed, write a brief summary of what was attempted and why it was abandoned to the progress file
 3. Set the status to `Abandoned` (not `COMPLETE`) and add a one-line reason
-4. Archive it to `docs/pair-progress-round-N.md` — abandoned rounds are still archived for reference
-5. Create a fresh `docs/pair-progress.md` for the next round, carrying forward:
+4. Use the Write tool to create `docs/pair-progress-round-N.md` with the full contents of `docs/pair-progress.md` — abandoned rounds are still archived for reference
+5. Use the Write tool to overwrite `docs/pair-progress.md` with a fresh template for the next round, carrying forward:
    - Open items and reminders (the work is abandoned, not the context)
    - Testing strategy
    - Ownership preferences
@@ -538,7 +547,8 @@ Do NOT abandon a round without explicit user confirmation. If the user is just f
 - Losing track of deferred ideas or things to bring up later
 - Not updating the progress file before a long conversation or at phase/round boundaries
 - Starting a new session without reading the progress file
-- Starting a new round without archiving the previous round's progress file
+- Starting a new round without archiving the previous round's progress file (archive = Write to `pair-progress-round-N.md`, not rename/move)
+- Skipping the `superpowers:writing-plans` step after brainstorming — every round needs a formal plan
 - Carrying over stale phase/task state from a completed round into a new round's progress file
 - Reading archived round files (`pair-progress-round-N.md`) when not asked — they are marked `Status: COMPLETE` and should be skipped
 - Skipping the retro at round end without offering it to the user
@@ -571,7 +581,8 @@ Do NOT abandon a round without explicit user confirmation. If the user is just f
 | New idea mid-phase | Recommend placement with reasoning, user decides |
 | Conversation drifts | Gently redirect, offer to slot into later phase |
 | End of phase | Update progress file with completed work and next steps |
-| All phases done | Run retro, archive progress file to `pair-progress-round-N.md`, create fresh `pair-progress.md`. More work? New round with fresh brainstorm |
+| Brainstorming complete | Use `superpowers:writing-plans` to formalize the plan in `docs/plans/` before starting execution |
+| All phases done | Run retro, Write archive to `pair-progress-round-N.md`, then Write fresh `pair-progress.md`. More work? New round with fresh brainstorm |
 | User needs to context-switch | Write full state, set status to `Paused`, note next step in pause context |
 | Resuming paused round | Read progress file, summarize pause context, confirm with user, set status to `Executing` |
 | User wants to abandon round | Confirm, write summary + reason, set status to `Abandoned`, archive, start fresh |

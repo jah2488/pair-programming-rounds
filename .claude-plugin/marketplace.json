@@ -7,7 +7,7 @@
     {
       "name": "pair-programming-rounds",
       "description": "Structured pair programming with Claude. Organizes work into rounds with explicit task ownership, collaborative brainstorming, progress persistence, and session continuity.",
-      "version": "3.0.0",
+      "version": "3.1.0",
       "source": "./"
     }
   ]
