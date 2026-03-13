@@ -165,6 +165,10 @@ detail_level: moderate
 
 The YAML frontmatter enables the companion dashboard and any future tooling to parse session state without scraping Markdown.
 
+### Upgrading from v3
+
+If you have an existing `docs/pair-progress.md` from v3 (without YAML frontmatter), Claude will automatically migrate it on the next session start. It reads the existing sections, generates the YAML frontmatter, and rewrites the file — preserving all your data. Archived round files (`docs/pair-progress-round-N.md`) are left as-is since they're read-only references.
+
 ## Tufte Visualizations
 
 The plugin includes 8 pre-built HTML visualization templates following [Edward Tufte's](https://www.edwardtufte.com/tufte/) design principles. Claude fills these templates with data from your codebase rather than generating D3 code from scratch — more reliable, more consistent.

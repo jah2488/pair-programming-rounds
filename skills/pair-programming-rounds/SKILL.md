@@ -315,6 +315,8 @@ When a round completes:
 3. **Write** (not move) the contents to `docs/pair-progress-round-N.md`
 4. **Write** a fresh `docs/pair-progress.md` for the next round, carrying forward: testing strategy, open items, ownership preferences
 
+Archived round files from v3 (without YAML frontmatter) do not need to be migrated — they are read-only references. Only the active `docs/pair-progress.md` needs the new format.
+
 When a round is abandoned:
 1. Confirm with the user first — abandoning requires explicit confirmation
 2. Set `status: abandoned` with a one-line reason
@@ -323,10 +325,14 @@ When a round is abandoned:
 ### Session start
 
 1. Read `docs/pair-progress.md` if it exists
-2. If it has a plan path, read that plan too
-3. If it contains a completed/abandoned round, archive it first
-4. If no progress file exists, check for `docs/pair-progress-round-*.md` filenames (don't read contents) to determine the next round number
-5. Never read archived round file contents unless the user asks about a previous round
+2. **If the file has no YAML frontmatter** (v3 format), migrate it:
+   - Read the file and extract: round number (from `# Round N` heading), status (from `## Status:` or `**Status:**` field), phase info, completed work, open items, testing strategy, and ownership preferences
+   - Write a new `docs/pair-progress.md` with YAML frontmatter populated from the extracted data, preserving all markdown body sections
+   - Tell the user: "I migrated your progress file to the new format with YAML frontmatter. Everything is preserved — take a look if you want to confirm."
+3. If it has a plan path, read that plan too
+4. If it contains a completed/abandoned round (`status: complete` or `status: abandoned` in frontmatter, or `## Status: COMPLETE` in v3 format), archive it first
+5. If no progress file exists, check for `docs/pair-progress-round-*.md` filenames (don't read contents) to determine the next round number
+6. Never read archived round file contents unless the user asks about a previous round
 
 ### Pausing
 
