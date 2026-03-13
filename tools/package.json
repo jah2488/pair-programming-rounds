@@ -1,0 +1,13 @@
+{
+  "name": "pair-dashboard",
+  "version": "1.0.0",
+  "description": "Live dashboard for pair-programming-rounds sessions",
+  "bin": {
+    "pair-dashboard": "./dashboard.js"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

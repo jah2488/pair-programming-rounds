@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .directory-group { margin-bottom: 1.5rem; }
+        .directory-label { font-size: 0.85rem; color: #666; margin-bottom: 0.25rem; font-weight: bold; }
+        .file-row { display: flex; align-items: center; margin: 0.3rem 0; cursor: pointer; }
+        .file-name { width: 220px; font-size: 0.8rem; color: #333; text-align: right; padding-right: 1rem; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sparkline-container { flex: 1; height: 24px; position: relative; }
+        .sparkline-container svg { width: 100%; height: 100%; }
+        .sparkline path { fill: none; stroke: #4e79a7; stroke-width: 1.5px; }
+        .sparkline .area { fill: #4e79a7; fill-opacity: 0.1; stroke: none; }
+        .file-row:hover .sparkline path { stroke: #e15759; stroke-width: 2px; }
+        .file-row:hover .sparkline .area { fill: #e15759; fill-opacity: 0.15; }
+        .tooltip { position: fixed; background: #fffff8; border: 1px solid #e0e0e0; padding: 0.5rem 0.75rem;
+            font-size: 0.8rem; font-family: et-book, Palatino, Georgia, serif; pointer-events: none;
+            opacity: 0; transition: opacity 0.15s; max-width: 320px; z-index: 10; }
+        .tooltip.visible { opacity: 1; }
+        .tooltip table { border-collapse: collapse; width: 100%; }
+        .tooltip th { text-align: left; font-size: 0.75rem; color: #666; border-bottom: 1px solid #e0e0e0; padding: 0.15rem 0.4rem; }
+        .tooltip td { padding: 0.15rem 0.4rem; font-size: 0.8rem; }
+        .tooltip td.num { text-align: right; }
+        .summary-line { font-size: 0.85rem; color: #333; margin-top: 1rem; border-top: 1px solid #e0e0e0; padding-top: 0.5rem; }
+        #viz { width: 100%; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+        table.data-table td.num { text-align: right; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Data Table</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   metric: "Cyclomatic Complexity",
+        //   files: [
+        //     { path: "auth/login.ts", directory: "auth", functions: [
+        //       { name: "handleLogin", value: 12 },
+        //       { name: "validateToken", value: 5 }
+        //     ]}
+        //   ]
+        // }
+        const DATA = {};
+
+        const viz = document.getElementById("viz");
+        const tooltip = document.getElementById("tooltip");
+
+        // Group files by directory
+        const directories = d3.group(DATA.files, d => d.directory);
+        const globalMax = d3.max(DATA.files, f => d3.max(f.functions, fn => fn.value)) || 1;
+
+        directories.forEach((files, dir) => {
+            const group = document.createElement("div");
+            group.className = "directory-group";
+
+            const label = document.createElement("div");
+            label.className = "directory-label";
+            label.textContent = dir + "/";
+            group.appendChild(label);
+
+            files.sort((a, b) => d3.max(b.functions, f => f.value) - d3.max(a.functions, f => f.value));
+
+            files.forEach(file => {
+                const row = document.createElement("div");
+                row.className = "file-row";
+
+                const name = document.createElement("div");
+                name.className = "file-name";
+                name.textContent = file.path.split("/").pop();
+                name.title = file.path;
+                row.appendChild(name);
+
+                const sparkContainer = document.createElement("div");
+                sparkContainer.className = "sparkline-container";
+                row.appendChild(sparkContainer);
+
+                const values = file.functions.map(f => f.value);
+                const svgEl = d3.select(sparkContainer).append("svg").attr("class", "sparkline");
+
+                const sparkWidth = 300;
+                const sparkHeight = 24;
+                svgEl.attr("viewBox", `0 0 ${sparkWidth} ${sparkHeight}`).attr("preserveAspectRatio", "none");
+
+                const x = d3.scaleLinear().domain([0, values.length - 1]).range([0, sparkWidth]);
+                const y = d3.scaleLinear().domain([0, globalMax]).range([sparkHeight - 2, 2]);
+
+                const line = d3.line().x((d, i) => x(i)).y(d => y(d)).curve(d3.curveMonotoneX);
+                const area = d3.area().x((d, i) => x(i)).y0(sparkHeight).y1(d => y(d)).curve(d3.curveMonotoneX);
+
+                svgEl.append("path").attr("class", "area").attr("d", area(values));
+                svgEl.append("path").attr("d", line(values));
+
+                row.addEventListener("mouseover", (event) => {
+                    let html = `<strong>${file.path}</strong><table><thead><tr><th>Function</th><th class="num">${DATA.metric}</th></tr></thead><tbody>`;
+                    file.functions.forEach(fn => {
+                        html += `<tr><td>${fn.name}</td><td class="num">${fn.value}</td></tr>`;
+                    });
+                    html += "</tbody></table>";
+                    tooltip.innerHTML = html;
+                    tooltip.classList.add("visible");
+                });
+
+                row.addEventListener("mousemove", (event) => {
+                    tooltip.style.left = (event.clientX + 16) + "px";
+                    tooltip.style.top = (event.clientY - 10) + "px";
+                });
+
+                row.addEventListener("mouseout", () => {
+                    tooltip.classList.remove("visible");
+                });
+
+                group.appendChild(row);
+            });
+
+            viz.appendChild(group);
+        });
+
+        // Data table for print fallback
+        const table = document.getElementById("data-table");
+        let tableHtml = `<thead><tr><th>File</th><th>Directory</th><th class="num">Max ${DATA.metric}</th><th class="num">Avg ${DATA.metric}</th><th class="num">Functions</th></tr></thead><tbody>`;
+        DATA.files.forEach(f => {
+            const max = d3.max(f.functions, fn => fn.value);
+            const avg = d3.mean(f.functions, fn => fn.value).toFixed(1);
+            tableHtml += `<tr><td>${f.path}</td><td>${f.directory}</td><td class="num">${max}</td><td class="num">${avg}</td><td class="num">${f.functions.length}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>

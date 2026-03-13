@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .node rect { stroke: #333; stroke-width: 1px; cursor: pointer; rx: 2; }
+        .node text { font-size: 0.7rem; fill: #333; pointer-events: none; }
+        .node .risk-label { font-size: 0.6rem; fill: #666; }
+        .link { fill: none; stroke: #ccc; stroke-width: 1px; }
+        .node.highlighted rect { stroke-width: 2px; stroke: #333; }
+        .node.dimmed { opacity: 0.15; }
+        .link.dimmed { opacity: 0.05; }
+        .link.highlighted { stroke: #333; stroke-width: 1.5px; }
+        .source-node rect { stroke-width: 2.5px; stroke: #333; }
+        .legend { font-size: 0.75rem; }
+        .legend rect { stroke: none; }
+        .detail-panel { position: fixed; right: 2rem; top: 2rem; width: 280px;
+            font-family: et-book, Palatino, Georgia, serif; font-size: 0.85rem;
+            background: #fffff8; border-left: 1px solid #e0e0e0; padding: 1rem;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        .detail-panel.visible { opacity: 1; }
+        .detail-panel h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+        #viz { width: 100%; min-height: 500px; overflow: auto; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+        table.data-table td.num { text-align: right; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Data Table</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="detail-panel" id="detail-panel">
+        <h3 id="detail-name"></h3>
+        <div id="detail-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   source_files: ["src/models/User.ts"],
+        //   nodes: [
+        //     { id: "src/models/User.ts", label: "User.ts", risk: 0.9, coupling: 8, test_coverage: 0.2,
+        //       tests: ["test/models/user.test.ts"], last_modified: "2026-03-10" }
+        //   ],
+        //   edges: [
+        //     { source: "src/models/User.ts", target: "src/api/users.ts", relationship: "imports" }
+        //   ]
+        // }
+        const DATA = {};
+
+        // Risk color scale: blue (low risk) → orange (high risk) — colorblind-safe
+        const riskColor = d3.scaleSequential(d3.interpolateYlOrBr).domain([0, 1]);
+
+        // Build tree layout from edges
+        const root = buildTree(DATA);
+
+        function buildTree(data) {
+            const nodeMap = new Map(data.nodes.map(n => [n.id, { ...n, children: [] }]));
+            const roots = new Set(data.source_files);
+            data.edges.forEach(e => {
+                const parent = nodeMap.get(e.source);
+                const child = nodeMap.get(e.target);
+                if (parent && child) parent.children.push(child);
+            });
+            // Create a virtual root if multiple source files
+            if (roots.size > 1) {
+                return { id: "__root__", label: "Changed Files", risk: 0, children: [...roots].map(r => nodeMap.get(r)).filter(Boolean) };
+            }
+            return nodeMap.get([...roots][0]) || { id: "__root__", label: "No data", risk: 0, children: [] };
+        }
+
+        const hierarchy = d3.hierarchy(root);
+        const nodeWidth = 160;
+        const nodeHeight = 36;
+
+        const treeLayout = d3.tree().nodeSize([nodeHeight + 16, nodeWidth + 60]);
+        treeLayout(hierarchy);
+
+        // Calculate bounds
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        hierarchy.each(d => {
+            minX = Math.min(minX, d.x); maxX = Math.max(maxX, d.x);
+            minY = Math.min(minY, d.y); maxY = Math.max(maxY, d.y);
+        });
+
+        const margin = 60;
+        const width = (maxY - minY) + nodeWidth + margin * 2;
+        const height = (maxX - minX) + nodeHeight + margin * 2;
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${margin - minY + nodeWidth / 2},${margin - minX + nodeHeight / 2})`);
+
+        // Draw links
+        const links = g.selectAll(".link")
+            .data(hierarchy.links()).join("path")
+            .attr("class", "link")
+            .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
+
+        // Draw nodes
+        const nodes = g.selectAll(".node")
+            .data(hierarchy.descendants()).join("g")
+            .attr("class", d => `node ${DATA.source_files.includes(d.data.id) ? "source-node" : ""}`)
+            .attr("transform", d => `translate(${d.y - nodeWidth / 2},${d.x - nodeHeight / 2})`);
+
+        nodes.append("rect")
+            .attr("width", nodeWidth).attr("height", nodeHeight)
+            .attr("fill", d => d.data.risk != null ? riskColor(d.data.risk) : "#fffff8");
+
+        nodes.append("text")
+            .attr("x", nodeWidth / 2).attr("y", nodeHeight / 2 - 2)
+            .attr("text-anchor", "middle").attr("dominant-baseline", "middle")
+            .text(d => d.data.label || d.data.id);
+
+        nodes.filter(d => d.data.risk != null).append("text")
+            .attr("class", "risk-label")
+            .attr("x", nodeWidth / 2).attr("y", nodeHeight - 4)
+            .attr("text-anchor", "middle")
+            .text(d => `risk: ${(d.data.risk * 100).toFixed(0)}%`);
+
+        // Interactions
+        const panel = document.getElementById("detail-panel");
+
+        nodes.on("mouseover", (event, d) => {
+            const ancestors = new Set();
+            let current = d;
+            while (current) { ancestors.add(current.data.id); current = current.parent; }
+            const descendants = new Set();
+            d.each(n => descendants.add(n.data.id));
+            const all = new Set([...ancestors, ...descendants]);
+
+            nodes.classed("dimmed", n => !all.has(n.data.id));
+            nodes.classed("highlighted", n => n.data.id === d.data.id);
+            links.classed("dimmed", l => !all.has(l.source.data.id) || !all.has(l.target.data.id));
+            links.classed("highlighted", l => all.has(l.source.data.id) && all.has(l.target.data.id));
+
+            document.getElementById("detail-name").textContent = d.data.label || d.data.id;
+            let html = `<p><strong>File:</strong> ${d.data.id}</p>`;
+            if (d.data.coupling != null) html += `<p><strong>Coupling:</strong> ${d.data.coupling} dependents</p>`;
+            if (d.data.test_coverage != null) html += `<p><strong>Test coverage:</strong> ${(d.data.test_coverage * 100).toFixed(0)}%</p>`;
+            if (d.data.risk != null) html += `<p><strong>Risk score:</strong> ${(d.data.risk * 100).toFixed(0)}%</p>`;
+            if (d.data.tests && d.data.tests.length) html += `<p><strong>Tests:</strong></p><ul>${d.data.tests.map(t => `<li style="font-size:0.8rem">${t}</li>`).join("")}</ul>`;
+            if (d.data.last_modified) html += `<p><strong>Last modified:</strong> ${d.data.last_modified}</p>`;
+            document.getElementById("detail-content").innerHTML = html;
+            panel.classList.add("visible");
+        }).on("mouseout", () => {
+            nodes.classed("dimmed", false).classed("highlighted", false);
+            links.classed("dimmed", false).classed("highlighted", false);
+            panel.classList.remove("visible");
+        });
+
+        // Legend
+        const legendWidth = 200;
+        const legendG = svg.append("g").attr("transform", `translate(${width - legendWidth - 20}, 20)`).attr("class", "legend");
+        const legendScale = d3.scaleLinear().domain([0, 1]).range([0, legendWidth]);
+
+        const defs = svg.append("defs");
+        const gradient = defs.append("linearGradient").attr("id", "risk-gradient");
+        gradient.append("stop").attr("offset", "0%").attr("stop-color", riskColor(0));
+        gradient.append("stop").attr("offset", "50%").attr("stop-color", riskColor(0.5));
+        gradient.append("stop").attr("offset", "100%").attr("stop-color", riskColor(1));
+
+        legendG.append("rect").attr("width", legendWidth).attr("height", 12).attr("fill", "url(#risk-gradient)");
+        legendG.append("text").attr("y", 24).text("Low risk").attr("font-size", "0.7rem");
+        legendG.append("text").attr("x", legendWidth).attr("y", 24).attr("text-anchor", "end").text("High risk").attr("font-size", "0.7rem");
+
+        // Data table
+        const table = document.getElementById("data-table");
+        let tableHtml = "<thead><tr><th>File</th><th class='num'>Risk</th><th class='num'>Coupling</th><th class='num'>Coverage</th><th>Tests</th><th>Last Modified</th></tr></thead><tbody>";
+        DATA.nodes.sort((a, b) => (b.risk || 0) - (a.risk || 0)).forEach(n => {
+            tableHtml += `<tr><td>${n.id}</td><td class="num">${n.risk != null ? (n.risk * 100).toFixed(0) + "%" : "—"}</td><td class="num">${n.coupling ?? "—"}</td><td class="num">${n.test_coverage != null ? (n.test_coverage * 100).toFixed(0) + "%" : "—"}</td><td>${(n.tests || []).join(", ") || "—"}</td><td>${n.last_modified || "—"}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>

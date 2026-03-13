@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        table.comparison { width: 100%; border-collapse: collapse; font-size: 0.9rem;
+            font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        table.comparison th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid #333;
+            font-weight: normal; font-size: 0.8rem; color: #666; cursor: pointer; user-select: none; }
+        table.comparison th:hover { color: #333; }
+        table.comparison th.sorted-asc::after { content: " \u25B4"; }
+        table.comparison th.sorted-desc::after { content: " \u25BE"; }
+        table.comparison th:first-child { font-weight: bold; color: #333; font-size: 0.9rem; }
+        table.comparison td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+        table.comparison td:first-child { font-weight: bold; }
+        table.comparison td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        table.comparison tr:hover { background: #f5f5f0; }
+        table.comparison tr:last-child td { border-bottom: 2px solid #333; }
+        /* No vertical rules — Tufte principle */
+        .cell-detail { display: none; font-size: 0.8rem; color: #666; margin-top: 0.25rem; font-weight: normal; }
+        tr:hover .cell-detail { display: block; }
+        .sidenote-container { position: relative; }
+        .sidenote { font-size: 0.8rem; color: #666; margin-top: 1rem; }
+        .sidenote::before { content: "* "; }
+        .recommendation { margin-top: 1.5rem; padding: 0.75rem; border-top: 1px solid #e0e0e0;
+            font-size: 0.9rem; }
+        .recommendation strong { font-weight: bold; }
+        #viz { width: 100%; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <div class="recommendation" id="recommendation"></div>
+
+        <section class="sidenote-container" id="sidenotes"></section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+    </article>
+
+    <script>
+        // DATA FORMAT:
+        // {
+        //   approaches: ["Event sourcing", "Active Record", "Repository pattern"],
+        //   criteria: [
+        //     { name: "Complexity", type: "text" },
+        //     { name: "Coupling", type: "text" },
+        //     { name: "Testability", type: "text" },
+        //     { name: "Migration risk", type: "text" },
+        //     { name: "Dev hours", type: "number" }
+        //   ],
+        //   cells: {
+        //     "Event sourcing": {
+        //       "Complexity": { value: "High", detail: "Requires event store, projections, and replay logic" },
+        //       "Coupling": { value: "Low", detail: "Events decouple producers from consumers" },
+        //       "Dev hours": { value: 40, detail: "Estimate based on team experience" }
+        //     }
+        //   },
+        //   sidenotes: ["Event sourcing estimate assumes team has prior CQRS experience"],
+        //   recommendation: "Repository pattern balances simplicity with testability for this project's scale"
+        // }
+        const DATA = {};
+
+        const viz = document.getElementById("viz");
+
+        // Build table
+        const table = document.createElement("table");
+        table.className = "comparison";
+
+        // Header
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+        const cornerTh = document.createElement("th");
+        cornerTh.textContent = "Approach";
+        headerRow.appendChild(cornerTh);
+
+        DATA.criteria.forEach((c, ci) => {
+            const th = document.createElement("th");
+            th.textContent = c.name;
+            th.dataset.col = ci;
+            th.addEventListener("click", () => sortTable(ci, c.type));
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        // Body
+        const tbody = document.createElement("tbody");
+        DATA.approaches.forEach(approach => {
+            const tr = document.createElement("tr");
+            const nameTd = document.createElement("td");
+            nameTd.textContent = approach;
+            tr.appendChild(nameTd);
+
+            DATA.criteria.forEach(c => {
+                const td = document.createElement("td");
+                const cell = DATA.cells[approach]?.[c.name];
+                if (cell) {
+                    td.textContent = cell.value;
+                    if (c.type === "number") td.className = "num";
+                    if (cell.detail) {
+                        const detail = document.createElement("div");
+                        detail.className = "cell-detail";
+                        detail.textContent = cell.detail;
+                        td.appendChild(detail);
+                    }
+                } else {
+                    td.textContent = "—";
+                }
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        viz.appendChild(table);
+
+        // Sort functionality
+        let currentSort = { col: -1, asc: true };
+
+        function sortTable(colIndex, type) {
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            const approach = (row) => row.cells[0].textContent;
+            const cellValue = (row) => {
+                const text = row.cells[colIndex + 1].childNodes[0]?.textContent || "";
+                return type === "number" ? parseFloat(text) || 0 : text;
+            };
+
+            const asc = currentSort.col === colIndex ? !currentSort.asc : true;
+            currentSort = { col: colIndex, asc: asc };
+
+            rows.sort((a, b) => {
+                const va = cellValue(a), vb = cellValue(b);
+                const cmp = type === "number" ? va - vb : String(va).localeCompare(String(vb));
+                return asc ? cmp : -cmp;
+            });
+
+            rows.forEach(r => tbody.appendChild(r));
+
+            // Update header indicators
+            table.querySelectorAll("th").forEach(th => th.classList.remove("sorted-asc", "sorted-desc"));
+            headerRow.children[colIndex + 1].classList.add(asc ? "sorted-asc" : "sorted-desc");
+        }
+
+        // Recommendation
+        if (DATA.recommendation) {
+            document.getElementById("recommendation").innerHTML = `<strong>Recommendation:</strong> ${DATA.recommendation}`;
+        }
+
+        // Sidenotes
+        if (DATA.sidenotes && DATA.sidenotes.length) {
+            const container = document.getElementById("sidenotes");
+            DATA.sidenotes.forEach(note => {
+                const p = document.createElement("p");
+                p.className = "sidenote";
+                p.textContent = note;
+                container.appendChild(p);
+            });
+        }
+    </script>
+</body>
+</html>

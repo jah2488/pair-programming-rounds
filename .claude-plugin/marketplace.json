@@ -6,8 +6,8 @@
   "plugins": [
     {
       "name": "pair-programming-rounds",
-      "description": "Structured pair programming with Claude. Organizes work into rounds with explicit task ownership, collaborative brainstorming, progress persistence, and session continuity.",
-      "version": "3.1.0",
+      "description": "Structured pair programming with Claude. Orchestrator pattern with subagent dispatch, YAML-frontmatter progress files, pre-built Tufte visualization templates, and an optional live dashboard.",
+      "version": "4.0.0",
       "source": "./"
     }
   ]
