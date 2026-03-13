@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .state circle { stroke: #333; stroke-width: 1.5px; cursor: pointer; }
+        .state.happy circle { fill-opacity: 0.8; }
+        .state.error circle { fill-opacity: 0.4; }
+        .state text { font-size: 0.75rem; fill: #333; pointer-events: none; }
+        .transition path { fill: none; stroke-width: 1.5px; }
+        .transition.happy path { stroke: #333; stroke-opacity: 0.7; }
+        .transition.error path { stroke: #999; stroke-opacity: 0.4; stroke-dasharray: 4,3; }
+        .transition text { font-size: 0.6rem; fill: #666; }
+        .transition marker { fill: #333; }
+        .state.highlighted circle { stroke-width: 3px; }
+        .state.dimmed { opacity: 0.1; }
+        .transition.dimmed { opacity: 0.05; }
+        .transition.highlighted path { stroke-width: 2.5px; stroke-opacity: 1; }
+        .controls { margin: 0.5rem 0; font-size: 0.8rem; }
+        .controls label { margin-right: 1rem; cursor: pointer; color: #666; }
+        .controls input { cursor: pointer; }
+        .detail-panel { position: fixed; right: 2rem; top: 2rem; width: 280px;
+            font-family: et-book, Palatino, Georgia, serif; font-size: 0.85rem;
+            background: #fffff8; border-left: 1px solid #e0e0e0; padding: 1rem;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        .detail-panel.visible { opacity: 1; }
+        .detail-panel h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+        .detail-panel pre { font-size: 0.75rem; background: #f5f5f0; padding: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+        #viz { width: 100%; min-height: 500px; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div class="controls">
+                    <label><input type="checkbox" id="toggle-errors" checked /> Show error paths</label>
+                    <label><input type="checkbox" id="toggle-guards" checked /> Show guards</label>
+                </div>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Transition Table</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="detail-panel" id="detail-panel">
+        <h3 id="detail-name"></h3>
+        <div id="detail-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   states: [
+        //     { id: "idle", label: "Idle", type: "initial", description: "Waiting for user input" },
+        //     { id: "loading", label: "Loading", type: "normal", description: "Fetching data" },
+        //     { id: "error", label: "Error", type: "error", description: "Request failed" },
+        //     { id: "success", label: "Success", type: "final", description: "Data loaded" }
+        //   ],
+        //   transitions: [
+        //     { source: "idle", target: "loading", event: "FETCH", guard: "isOnline", happy: true, code: "dispatch({ type: 'FETCH' })" },
+        //     { source: "loading", target: "error", event: "REJECT", guard: null, happy: false, code: "catch(e) => ..." }
+        //   ]
+        // }
+        const DATA = {};
+
+        const container = document.getElementById("viz");
+        const width = container.clientWidth || 800;
+        const height = Math.max(500, width * 0.6);
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        // Arrow markers
+        const defs = svg.append("defs");
+        ["happy", "error"].forEach(type => {
+            defs.append("marker")
+                .attr("id", `arrow-${type}`).attr("viewBox", "0 0 10 6")
+                .attr("refX", 22).attr("refY", 3)
+                .attr("markerWidth", 8).attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path").attr("d", "M0,0L10,3L0,6")
+                .style("fill", type === "happy" ? "#333" : "#999");
+        });
+
+        const stateColor = d3.scaleOrdinal()
+            .domain(["initial", "normal", "error", "final"])
+            .range(["#4e79a7", "#76b7b2", "#e15759", "#59a14f"]);
+
+        const stateRadius = 28;
+
+        const simulation = d3.forceSimulation(DATA.states)
+            .force("link", d3.forceLink(DATA.transitions).id(d => d.id).distance(150))
+            .force("charge", d3.forceManyBody().strength(-400))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide(stateRadius + 30));
+
+        // Draw transitions
+        const transitionG = svg.append("g").selectAll("g")
+            .data(DATA.transitions).join("g")
+            .attr("class", d => `transition ${d.happy ? "happy" : "error"}`);
+
+        const transitionPaths = transitionG.append("path")
+            .attr("marker-end", d => `url(#arrow-${d.happy ? "happy" : "error"})`);
+
+        const guardLabels = transitionG.append("text").attr("text-anchor", "middle");
+
+        // Draw states
+        const stateG = svg.append("g").selectAll("g")
+            .data(DATA.states).join("g")
+            .attr("class", d => `state ${d.type === "error" ? "error" : "happy"}`)
+            .call(d3.drag()
+                .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+                .on("end", (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+        stateG.append("circle")
+            .attr("r", stateRadius)
+            .attr("fill", d => stateColor(d.type));
+
+        // Double circle for final states
+        stateG.filter(d => d.type === "final").append("circle")
+            .attr("r", stateRadius - 4)
+            .attr("fill", "none").attr("stroke", "#333").attr("stroke-width", 1);
+
+        stateG.append("text")
+            .attr("text-anchor", "middle").attr("dy", 4)
+            .text(d => d.label || d.id);
+
+        // Tick
+        simulation.on("tick", () => {
+            transitionPaths.attr("d", d => {
+                const dx = d.target.x - d.source.x;
+                const dy = d.target.y - d.source.y;
+                const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
+                return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+            });
+
+            guardLabels.attr("x", d => (d.source.x + d.target.x) / 2)
+                .attr("y", d => (d.source.y + d.target.y) / 2 - 8)
+                .text(d => {
+                    const showGuards = document.getElementById("toggle-guards").checked;
+                    let label = d.event || "";
+                    if (showGuards && d.guard) label += ` [${d.guard}]`;
+                    return label;
+                });
+
+            stateG.attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // Interactions
+        const panel = document.getElementById("detail-panel");
+
+        stateG.on("mouseover", (event, d) => {
+            // Highlight all paths to/from this state
+            const connected = new Set([d.id]);
+            DATA.transitions.forEach(t => {
+                const src = t.source.id || t.source;
+                const tgt = t.target.id || t.target;
+                if (src === d.id) connected.add(tgt);
+                if (tgt === d.id) connected.add(src);
+            });
+
+            stateG.classed("dimmed", s => !connected.has(s.id));
+            stateG.classed("highlighted", s => s.id === d.id);
+            transitionG.classed("dimmed", t => {
+                const src = t.source.id || t.source;
+                const tgt = t.target.id || t.target;
+                return src !== d.id && tgt !== d.id;
+            });
+            transitionG.classed("highlighted", t => {
+                const src = t.source.id || t.source;
+                const tgt = t.target.id || t.target;
+                return src === d.id || tgt === d.id;
+            });
+
+            document.getElementById("detail-name").textContent = d.label || d.id;
+            let html = `<p>${d.description || ""}</p>`;
+            html += `<p><strong>Type:</strong> ${d.type}</p>`;
+            const incoming = DATA.transitions.filter(t => (t.target.id || t.target) === d.id);
+            const outgoing = DATA.transitions.filter(t => (t.source.id || t.source) === d.id);
+            if (incoming.length) html += `<p><strong>Incoming:</strong> ${incoming.map(t => t.event || "—").join(", ")}</p>`;
+            if (outgoing.length) html += `<p><strong>Outgoing:</strong> ${outgoing.map(t => t.event || "—").join(", ")}</p>`;
+            document.getElementById("detail-content").innerHTML = html;
+            panel.classList.add("visible");
+        }).on("mouseout", () => {
+            stateG.classed("dimmed", false).classed("highlighted", false);
+            transitionG.classed("dimmed", false).classed("highlighted", false);
+            panel.classList.remove("visible");
+        });
+
+        // Toggle controls
+        document.getElementById("toggle-errors").addEventListener("change", function() {
+            transitionG.filter(d => !d.happy).style("display", this.checked ? null : "none");
+            stateG.filter(d => d.type === "error").style("display", this.checked ? null : "none");
+        });
+
+        document.getElementById("toggle-guards").addEventListener("change", function() {
+            simulation.alpha(0.01).restart(); // Refresh labels
+        });
+
+        // Data table
+        const table = document.getElementById("data-table");
+        let tableHtml = "<thead><tr><th>From</th><th>Event</th><th>Guard</th><th>To</th><th>Path</th></tr></thead><tbody>";
+        DATA.transitions.forEach(t => {
+            const src = DATA.states.find(s => s.id === (t.source.id || t.source));
+            const tgt = DATA.states.find(s => s.id === (t.target.id || t.target));
+            tableHtml += `<tr><td>${src?.label || t.source}</td><td>${t.event || "—"}</td><td>${t.guard || "—"}</td><td>${tgt?.label || t.target}</td><td>${t.happy ? "happy" : "error"}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>

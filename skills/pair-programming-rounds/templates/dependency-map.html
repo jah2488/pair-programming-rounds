@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .node circle { stroke: #333; stroke-width: 1.5px; cursor: pointer; }
+        .node text { font-size: 0.75rem; fill: #333; pointer-events: none; }
+        .link { stroke: #999; stroke-opacity: 0.6; fill: none; }
+        .node.dimmed circle { opacity: 0.15; }
+        .node.dimmed text { opacity: 0.15; }
+        .link.dimmed { stroke-opacity: 0.05; }
+        .link.highlighted { stroke: #333; stroke-opacity: 0.9; }
+        .node.highlighted circle { stroke-width: 2.5px; }
+        .detail-panel { position: fixed; right: 2rem; top: 2rem; width: 280px;
+            font-family: et-book, Palatino, Georgia, serif; font-size: 0.85rem;
+            background: #fffff8; border-left: 1px solid #e0e0e0; padding: 1rem;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        .detail-panel.visible { opacity: 1; }
+        .detail-panel h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+        .detail-panel ul { margin: 0.25rem 0; padding-left: 1.2rem; }
+        .detail-panel li { margin: 0.15rem 0; }
+        #viz { width: 100%; min-height: 500px; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+        table.data-table td.num { text-align: right; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Data Table</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="detail-panel" id="detail-panel">
+        <h3 id="detail-name"></h3>
+        <div id="detail-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   nodes: [{ id: "auth", label: "auth", group: "core", imports: ["db","crypto"], exports: ["login","logout"] }],
+        //   edges: [{ source: "auth", target: "db", weight: 3 }]
+        // }
+        const DATA = {};
+
+        const container = document.getElementById("viz");
+        const width = container.clientWidth || 800;
+        const height = Math.max(500, width * 0.6);
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        const maxWeight = d3.max(DATA.edges, d => d.weight) || 1;
+        const maxDeps = d3.max(DATA.nodes, d => {
+            return DATA.edges.filter(e => e.target === d.id || e.source === d.id).length;
+        }) || 1;
+
+        const radiusScale = d3.scaleSqrt().domain([0, maxDeps]).range([6, 28]);
+        const strokeScale = d3.scaleLinear().domain([0, maxWeight]).range([1, 5]);
+
+        const groups = [...new Set(DATA.nodes.map(d => d.group))];
+        const colorScale = d3.scaleOrdinal()
+            .domain(groups)
+            .range(["#4e79a7", "#f28e2b", "#76b7b2", "#e15759", "#59a14f"].slice(0, groups.length));
+
+        const simulation = d3.forceSimulation(DATA.nodes)
+            .force("link", d3.forceLink(DATA.edges).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => radiusScale(getConnections(d.id)) + 10));
+
+        function getConnections(id) {
+            return DATA.edges.filter(e => e.source.id === id || e.target.id === id || e.source === id || e.target === id).length;
+        }
+
+        const link = svg.append("g").selectAll("line")
+            .data(DATA.edges).join("line")
+            .attr("class", "link")
+            .attr("stroke-width", d => strokeScale(d.weight));
+
+        const node = svg.append("g").selectAll("g")
+            .data(DATA.nodes).join("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", (event, d) => { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
+                .on("end", (event, d) => { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+        node.append("circle")
+            .attr("r", d => radiusScale(getConnections(d.id)))
+            .attr("fill", d => colorScale(d.group))
+            .attr("fill-opacity", 0.7);
+
+        node.append("text")
+            .attr("dy", d => radiusScale(getConnections(d.id)) + 14)
+            .attr("text-anchor", "middle")
+            .text(d => d.label || d.id);
+
+        let frozen = null;
+
+        node.on("mouseover", (event, d) => {
+            if (frozen) return;
+            highlightNode(d);
+        }).on("mouseout", () => {
+            if (frozen) return;
+            clearHighlight();
+        }).on("click", (event, d) => {
+            if (frozen === d.id) { frozen = null; clearHighlight(); }
+            else { frozen = d.id; highlightNode(d); }
+        });
+
+        function highlightNode(d) {
+            const connected = new Set();
+            DATA.edges.forEach(e => {
+                const src = e.source.id || e.source;
+                const tgt = e.target.id || e.target;
+                if (src === d.id) connected.add(tgt);
+                if (tgt === d.id) connected.add(src);
+            });
+            connected.add(d.id);
+
+            node.classed("dimmed", n => !connected.has(n.id));
+            node.classed("highlighted", n => n.id === d.id);
+            link.classed("dimmed", l => (l.source.id || l.source) !== d.id && (l.target.id || l.target) !== d.id);
+            link.classed("highlighted", l => (l.source.id || l.source) === d.id || (l.target.id || l.target) === d.id);
+
+            const panel = document.getElementById("detail-panel");
+            document.getElementById("detail-name").textContent = d.label || d.id;
+            let html = `<p><strong>Group:</strong> ${d.group || "—"}</p>`;
+            if (d.imports && d.imports.length) html += `<p><strong>Imports:</strong></p><ul>${d.imports.map(i => `<li>${i}</li>`).join("")}</ul>`;
+            if (d.exports && d.exports.length) html += `<p><strong>Exports:</strong></p><ul>${d.exports.map(e => `<li>${e}</li>`).join("")}</ul>`;
+            html += `<p><strong>Connections:</strong> ${connected.size - 1}</p>`;
+            document.getElementById("detail-content").innerHTML = html;
+            panel.classList.add("visible");
+        }
+
+        function clearHighlight() {
+            node.classed("dimmed", false).classed("highlighted", false);
+            link.classed("dimmed", false).classed("highlighted", false);
+            document.getElementById("detail-panel").classList.remove("visible");
+        }
+
+        simulation.on("tick", () => {
+            link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            node.attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        // Data table for print fallback
+        const table = document.getElementById("data-table");
+        let tableHtml = "<thead><tr><th>Module</th><th>Group</th><th class='num'>Connections</th><th>Imports</th><th>Exports</th></tr></thead><tbody>";
+        DATA.nodes.forEach(n => {
+            const conns = DATA.edges.filter(e => (e.source.id || e.source) === n.id || (e.target.id || e.target) === n.id).length;
+            tableHtml += `<tr><td>${n.label || n.id}</td><td>${n.group || "—"}</td><td class='num'>${conns}</td><td>${(n.imports || []).join(", ")}</td><td>${(n.exports || []).join(", ")}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>

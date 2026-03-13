@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .participant-label { font-size: 0.8rem; fill: #333; font-weight: bold; }
+        .lifeline { stroke: #e0e0e0; stroke-width: 1px; stroke-dasharray: 4,4; }
+        .message-line { stroke-width: 1.5px; }
+        .message-line.sync { stroke: #333; }
+        .message-line.async { stroke: #333; stroke-dasharray: 6,3; }
+        .message-label { font-size: 0.65rem; fill: #333; }
+        .duration-label { font-size: 0.6rem; fill: #999; }
+        .time-axis text { font-size: 0.65rem; fill: #999; }
+        .time-axis line { stroke: #e0e0e0; }
+        .message-group:hover .message-line { stroke-width: 2.5px; }
+        .message-group:hover .message-label { font-weight: bold; }
+        .participant-highlight { fill: #4e79a7; fill-opacity: 0; }
+        .participant-col:hover .participant-highlight { fill-opacity: 0.03; }
+        .tooltip { position: fixed; background: #fffff8; border: 1px solid #e0e0e0; padding: 0.5rem 0.75rem;
+            font-size: 0.8rem; font-family: et-book, Palatino, Georgia, serif; pointer-events: none;
+            opacity: 0; transition: opacity 0.15s; max-width: 320px; z-index: 10; }
+        .tooltip.visible { opacity: 1; }
+        .idle-region { fill: #f5f5f0; stroke: none; }
+        .idle-label { font-size: 0.6rem; fill: #ccc; }
+        #viz { width: 100%; overflow-x: auto; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+        table.data-table td.num { text-align: right; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Event Log</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   participants: ["Client", "API Gateway", "Auth Service", "Database"],
+        //   events: [
+        //     { from: "Client", to: "API Gateway", label: "POST /login", type: "sync",
+        //       timestamp: 0, duration: 5, payload: "{ email, password }", description: "User submits credentials" },
+        //     { from: "API Gateway", to: "Auth Service", label: "validate()", type: "async",
+        //       timestamp: 5, duration: 12, payload: "JWT token request", description: "Gateway forwards to auth" }
+        //   ]
+        // }
+        const DATA = {};
+
+        const tooltip = document.getElementById("tooltip");
+        const margin = { top: 50, right: 40, bottom: 40, left: 40 };
+        const participantSpacing = 160;
+        const rowHeight = 36;
+
+        const totalWidth = margin.left + DATA.participants.length * participantSpacing + margin.right;
+        const totalHeight = margin.top + DATA.events.length * rowHeight + margin.bottom + 40;
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", totalWidth).attr("height", totalHeight)
+            .attr("viewBox", [0, 0, totalWidth, totalHeight]);
+
+        const participantX = (name) => {
+            const idx = DATA.participants.indexOf(name);
+            return margin.left + idx * participantSpacing + participantSpacing / 2;
+        };
+
+        // Participant headers and lifelines
+        DATA.participants.forEach((p, i) => {
+            const x = participantX(p);
+
+            // Highlight column on hover
+            const colG = svg.append("g").attr("class", "participant-col");
+            colG.append("rect")
+                .attr("class", "participant-highlight")
+                .attr("x", x - participantSpacing / 2)
+                .attr("y", margin.top)
+                .attr("width", participantSpacing)
+                .attr("height", totalHeight - margin.top);
+
+            // Label
+            svg.append("text")
+                .attr("class", "participant-label")
+                .attr("x", x).attr("y", margin.top - 16)
+                .attr("text-anchor", "middle")
+                .text(p);
+
+            // Lifeline
+            svg.append("line")
+                .attr("class", "lifeline")
+                .attr("x1", x).attr("y1", margin.top)
+                .attr("x2", x).attr("y2", totalHeight - margin.bottom);
+        });
+
+        // Arrow marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrow").attr("viewBox", "0 0 10 6")
+            .attr("refX", 10).attr("refY", 3)
+            .attr("markerWidth", 7).attr("markerHeight", 5)
+            .attr("orient", "auto")
+            .append("path").attr("d", "M0,0L10,3L0,6").style("fill", "#333");
+
+        // Draw events
+        DATA.events.forEach((event, i) => {
+            const y = margin.top + 20 + i * rowHeight;
+            const x1 = participantX(event.from);
+            const x2 = participantX(event.to);
+            const isSelf = event.from === event.to;
+
+            const g = svg.append("g").attr("class", "message-group").style("cursor", "pointer");
+
+            if (isSelf) {
+                // Self-call: loop arrow
+                g.append("path")
+                    .attr("class", `message-line ${event.type}`)
+                    .attr("d", `M${x1},${y} L${x1 + 30},${y} L${x1 + 30},${y + 16} L${x1},${y + 16}`)
+                    .attr("fill", "none")
+                    .attr("marker-end", "url(#arrow)");
+            } else {
+                g.append("line")
+                    .attr("class", `message-line ${event.type}`)
+                    .attr("x1", x1).attr("y1", y)
+                    .attr("x2", x2).attr("y2", y)
+                    .attr("marker-end", "url(#arrow)");
+            }
+
+            // Label
+            const labelX = isSelf ? x1 + 34 : (x1 + x2) / 2;
+            g.append("text")
+                .attr("class", "message-label")
+                .attr("x", labelX).attr("y", y - 6)
+                .attr("text-anchor", isSelf ? "start" : "middle")
+                .text(event.label || "");
+
+            // Duration
+            if (event.duration != null) {
+                g.append("text")
+                    .attr("class", "duration-label")
+                    .attr("x", isSelf ? x1 + 34 : (x1 + x2) / 2)
+                    .attr("y", y + 12)
+                    .attr("text-anchor", isSelf ? "start" : "middle")
+                    .text(`${event.duration}ms`);
+            }
+
+            // Tooltip
+            g.on("mouseover", (mouseEvent) => {
+                let html = `<strong>${event.label || "Event"}</strong>`;
+                html += `<br>${event.from} → ${event.to}`;
+                if (event.description) html += `<br><em>${event.description}</em>`;
+                if (event.payload) html += `<br><strong>Payload:</strong> ${event.payload}`;
+                if (event.duration != null) html += `<br><strong>Duration:</strong> ${event.duration}ms`;
+                tooltip.innerHTML = html;
+                tooltip.classList.add("visible");
+            }).on("mousemove", (mouseEvent) => {
+                tooltip.style.left = (mouseEvent.clientX + 16) + "px";
+                tooltip.style.top = (mouseEvent.clientY - 10) + "px";
+            }).on("mouseout", () => {
+                tooltip.classList.remove("visible");
+            });
+        });
+
+        // Data table
+        const table = document.getElementById("data-table");
+        let tableHtml = "<thead><tr><th>#</th><th>From</th><th>To</th><th>Event</th><th>Type</th><th class='num'>Duration</th><th>Description</th></tr></thead><tbody>";
+        DATA.events.forEach((e, i) => {
+            tableHtml += `<tr><td class="num">${i + 1}</td><td>${e.from}</td><td>${e.to}</td><td>${e.label || "—"}</td><td>${e.type}</td><td class="num">${e.duration != null ? e.duration + "ms" : "—"}</td><td>${e.description || "—"}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>

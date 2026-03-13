@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TITLE_PLACEHOLDER</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tufte-css/1.8.0/tufte.min.css" />
+    <style>
+        body { background: #fffff8; }
+        svg text { font-family: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif; }
+        .node rect { fill: #fffff8; stroke: #333; stroke-width: 1px; cursor: pointer; }
+        .node text { font-size: 0.75rem; fill: #333; }
+        .node .layer-label { font-size: 0.65rem; fill: #999; }
+        .edge path { fill: none; stroke: #999; stroke-opacity: 0.6; }
+        .edge text { font-size: 0.65rem; fill: #666; }
+        .edge marker { fill: #999; }
+        .node.highlighted rect { stroke: #4e79a7; stroke-width: 2px; }
+        .edge.highlighted path { stroke: #4e79a7; stroke-opacity: 0.9; stroke-width: 2px; }
+        .node.dimmed rect { opacity: 0.2; }
+        .node.dimmed text { opacity: 0.2; }
+        .edge.dimmed path { stroke-opacity: 0.05; }
+        .edge.dimmed text { opacity: 0.05; }
+        .detail-panel { position: fixed; right: 2rem; top: 2rem; width: 280px;
+            font-family: et-book, Palatino, Georgia, serif; font-size: 0.85rem;
+            background: #fffff8; border-left: 1px solid #e0e0e0; padding: 1rem;
+            opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+        .detail-panel.visible { opacity: 1; }
+        .detail-panel h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+        #viz { width: 100%; min-height: 500px; overflow-x: auto; }
+        table.data-table { width: 100%; border-collapse: collapse; margin-top: 2rem; font-size: 0.85rem; }
+        table.data-table th { text-align: left; border-bottom: 2px solid #333; padding: 0.3rem 0.5rem; }
+        table.data-table td { border-bottom: 1px solid #e0e0e0; padding: 0.3rem 0.5rem; }
+    </style>
+</head>
+<body>
+    <article>
+        <h1>TITLE_PLACEHOLDER</h1>
+        <p class="subtitle">SUBTITLE_PLACEHOLDER</p>
+
+        <section>
+            <figure>
+                <div id="viz"></div>
+                <figcaption>CAPTION_PLACEHOLDER</figcaption>
+            </figure>
+        </section>
+
+        <section>
+            <p>PROVENANCE_PLACEHOLDER</p>
+        </section>
+
+        <section>
+            <h2>Data Table</h2>
+            <table class="data-table" id="data-table"></table>
+        </section>
+    </article>
+
+    <div class="detail-panel" id="detail-panel">
+        <h3 id="detail-name"></h3>
+        <div id="detail-content"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <script>
+        // DATA FORMAT:
+        // {
+        //   layers: ["Input", "Processing", "Storage", "Output"],
+        //   nodes: [
+        //     { id: "http-request", label: "HTTP Request", layer: "Input", description: "Incoming API call", code: "app.post('/api/users', ...)" },
+        //     { id: "validate", label: "Validate", layer: "Processing", description: "Schema validation", code: "validateSchema(req.body)" }
+        //   ],
+        //   edges: [
+        //     { source: "http-request", target: "validate", label: "request body", description: "Raw JSON payload passed to validator" }
+        //   ]
+        // }
+        const DATA = {};
+
+        const container = document.getElementById("viz");
+        const margin = { top: 40, right: 40, bottom: 40, left: 40 };
+        const layerWidth = 180;
+        const nodeHeight = 40;
+        const nodeSpacing = 20;
+
+        // Group nodes by layer
+        const layerNodes = new Map();
+        DATA.layers.forEach(l => layerNodes.set(l, []));
+        DATA.nodes.forEach(n => {
+            if (layerNodes.has(n.layer)) layerNodes.get(n.layer).push(n);
+        });
+
+        const maxNodesInLayer = d3.max([...layerNodes.values()], arr => arr.length) || 1;
+        const width = margin.left + DATA.layers.length * (layerWidth + 80) + margin.right;
+        const height = margin.top + maxNodesInLayer * (nodeHeight + nodeSpacing) + margin.bottom + 30;
+
+        const svg = d3.select("#viz").append("svg")
+            .attr("width", width).attr("height", height)
+            .attr("viewBox", [0, 0, width, height]);
+
+        // Arrow marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrow").attr("viewBox", "0 0 10 6")
+            .attr("refX", 10).attr("refY", 3)
+            .attr("markerWidth", 8).attr("markerHeight", 6)
+            .attr("orient", "auto")
+            .append("path").attr("d", "M0,0L10,3L0,6").attr("class", "edge").style("fill", "#999");
+
+        // Position nodes
+        const nodePositions = new Map();
+        DATA.layers.forEach((layer, li) => {
+            const nodes = layerNodes.get(layer);
+            const x = margin.left + li * (layerWidth + 80);
+            const totalH = nodes.length * nodeHeight + (nodes.length - 1) * nodeSpacing;
+            const startY = margin.top + 20 + (height - margin.top - margin.bottom - 20 - totalH) / 2;
+
+            // Layer label
+            svg.append("text").attr("x", x + layerWidth / 2).attr("y", margin.top)
+                .attr("text-anchor", "middle").attr("class", "layer-label")
+                .style("font-size", "0.7rem").style("fill", "#999")
+                .text(layer);
+
+            nodes.forEach((node, ni) => {
+                const y = startY + ni * (nodeHeight + nodeSpacing);
+                nodePositions.set(node.id, { x, y, w: layerWidth, h: nodeHeight });
+            });
+        });
+
+        // Draw edges
+        const edgeGroups = svg.append("g").selectAll("g")
+            .data(DATA.edges).join("g").attr("class", "edge");
+
+        edgeGroups.each(function(d) {
+            const src = nodePositions.get(d.source);
+            const tgt = nodePositions.get(d.target);
+            if (!src || !tgt) return;
+
+            const x1 = src.x + src.w;
+            const y1 = src.y + src.h / 2;
+            const x2 = tgt.x;
+            const y2 = tgt.y + tgt.h / 2;
+            const midX = (x1 + x2) / 2;
+
+            d3.select(this).append("path")
+                .attr("d", `M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`)
+                .attr("marker-end", "url(#arrow)");
+
+            if (d.label) {
+                d3.select(this).append("text")
+                    .attr("x", midX).attr("y", (y1 + y2) / 2 - 6)
+                    .attr("text-anchor", "middle")
+                    .text(d.label);
+            }
+        });
+
+        // Draw nodes
+        const nodeGroups = svg.append("g").selectAll("g")
+            .data(DATA.nodes).join("g").attr("class", "node")
+            .attr("transform", d => {
+                const pos = nodePositions.get(d.id);
+                return pos ? `translate(${pos.x},${pos.y})` : "";
+            });
+
+        nodeGroups.append("rect")
+            .attr("width", d => nodePositions.get(d.id)?.w || layerWidth)
+            .attr("height", nodeHeight)
+            .attr("rx", 2);
+
+        nodeGroups.append("text")
+            .attr("x", d => (nodePositions.get(d.id)?.w || layerWidth) / 2)
+            .attr("y", nodeHeight / 2 + 4)
+            .attr("text-anchor", "middle")
+            .text(d => d.label || d.id);
+
+        // Interactions
+        const panel = document.getElementById("detail-panel");
+
+        nodeGroups.on("mouseover", (event, d) => {
+            const connected = new Set([d.id]);
+            DATA.edges.forEach(e => {
+                if (e.source === d.id) connected.add(e.target);
+                if (e.target === d.id) connected.add(e.source);
+            });
+
+            nodeGroups.classed("dimmed", n => !connected.has(n.id));
+            nodeGroups.classed("highlighted", n => n.id === d.id);
+            edgeGroups.classed("dimmed", e => e.source !== d.id && e.target !== d.id);
+            edgeGroups.classed("highlighted", e => e.source === d.id || e.target === d.id);
+
+            document.getElementById("detail-name").textContent = d.label || d.id;
+            let html = `<p>${d.description || ""}</p>`;
+            if (d.code) html += `<pre style="font-size:0.75rem;background:#f5f5f0;padding:0.5rem;overflow-x:auto">${d.code}</pre>`;
+            document.getElementById("detail-content").innerHTML = html;
+            panel.classList.add("visible");
+        }).on("mouseout", () => {
+            nodeGroups.classed("dimmed", false).classed("highlighted", false);
+            edgeGroups.classed("dimmed", false).classed("highlighted", false);
+            panel.classList.remove("visible");
+        });
+
+        // Data table
+        const table = document.getElementById("data-table");
+        let tableHtml = "<thead><tr><th>From</th><th>To</th><th>Transformation</th><th>Description</th></tr></thead><tbody>";
+        DATA.edges.forEach(e => {
+            const srcNode = DATA.nodes.find(n => n.id === e.source);
+            const tgtNode = DATA.nodes.find(n => n.id === e.target);
+            tableHtml += `<tr><td>${srcNode?.label || e.source}</td><td>${tgtNode?.label || e.target}</td><td>${e.label || "—"}</td><td>${e.description || "—"}</td></tr>`;
+        });
+        tableHtml += "</tbody>";
+        table.innerHTML = tableHtml;
+    </script>
+</body>
+</html>
