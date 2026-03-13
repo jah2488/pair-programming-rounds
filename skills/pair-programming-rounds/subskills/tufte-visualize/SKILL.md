@@ -51,7 +51,7 @@ Visual representation proportional to quantities (Lie Factor near 1.0). Zero bas
 
 ## How to Generate
 
-**Always use the pre-built templates** in `skills/pair-programming-rounds/templates/`. Do NOT generate D3 code from scratch.
+**Always use the pre-built templates.** The templates are in the `templates/` directory adjacent to this subskill's parent skill (i.e., `skills/pair-programming-rounds/templates/` relative to the plugin root). Do NOT generate D3 code from scratch. If you cannot locate the template files, ask the user for the plugin installation path.
 
 1. Choose the right template based on the programmer's question (see catalog below)
 2. Gather data by reading code, analyzing structure, or asking the user

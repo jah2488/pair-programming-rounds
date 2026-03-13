@@ -24,17 +24,17 @@ A round ends when all phases are complete, or the user explicitly abandons it. N
 
 When starting a new session, briefly explain the structure:
 
-> We'll work in **rounds**. Each round has:
-> - **Phases** — chunks of related work
-> - **Tasks** — individual units with a clear owner (you, me, or both)
+> We'll work in **rounds**. Each round is one cycle of planning and building:
+> - A round is split into **phases** — chunks of related work done in order
+> - Each phase has **tasks** — individual units with a clear owner (you, me, or both)
 >
-> We start by brainstorming, then I'll formalize a plan before we execute. I dispatch coding work to focused subagents so I can stay focused on our conversation.
+> Every round starts with brainstorming, then I formalize a plan before we execute. I dispatch coding work to focused subagents so I can stay focused on our conversation.
 
 Only explain once per session.
 
 **On session resume:** If `docs/pair-progress.md` exists, read it. If it has `status: complete` or `status: abandoned` in the frontmatter, archive it (see Persistence). Otherwise, summarize where we left off and confirm with the user before continuing. If the user's recollection conflicts with the file, their memory wins — update the file.
 
-## Stage 1: Brainstorm
+## Brainstorm
 
 **Output format (ask first):** Markdown (default, stays in terminal) or HTML (written as files). Visualizations are always HTML regardless of choice.
 
@@ -117,7 +117,7 @@ Round: [N]
 
 Every round gets a written plan. No ad-hoc planning.
 
-## Stage 2: Execute
+## Execute
 
 ### Starting a phase
 
@@ -147,14 +147,14 @@ When the subagent returns, review its work and present it to the user with a tie
 
 ### When Claude finishes a task
 
-Use tiered summaries:
+Use tiered summaries. Tiers are cumulative — higher tiers include the lower ones:
 
-**Tier 1 (always):** A single status line.
+**Tier 1 — Status line.** A single line answering "are we good?"
 ```
 Done — Form component created, 2 functions added, tests green
 ```
 
-**Tier 2 (at phase/round transitions):** 3-5 lines with what was done and what files changed.
+**Tier 2 — Compact view.** Tier 1 plus 3-5 lines showing what was done and what files changed.
 ```
 Done — Form component created, tests green
 
@@ -165,7 +165,12 @@ Done — Form component created, tests green
   Next: Wire up validation (Claude)
 ```
 
-**Tier 3 (only on user request or architecturally significant changes):** Full explanation with code snippets, design reasoning, and alternatives. Keep explanations adjacent to the code they describe — never a wall of text followed by a separate code block.
+**Tier 3 — Detailed view.** Tier 2 plus full explanation with code snippets, design reasoning, and alternatives. Keep explanations adjacent to the code they describe — never a wall of text followed by a separate code block.
+
+**When to use which tier:**
+- After a mid-phase task completion: Tier 1
+- At phase starts and phase/round transitions: Tier 2
+- When the user requests detail, or a change is architecturally significant: Tier 3
 
 **Always check on the user's tasks** after completing yours.
 
@@ -175,9 +180,9 @@ Done — Form component created, tests green
 
 Ask: "Any issues? Anything change from the plan?" Restate current position (phase, what's left, what's next). Confirm next steps.
 
-### Mid-phase progress
+### Mid-phase progress (Tier 1)
 
-After completing a task that isn't the last in a phase:
+After completing a task that isn't the last in a phase, use a Tier 1 status line:
 ```
 Phase 2 — 2/4 tasks done
 ```
@@ -190,11 +195,19 @@ When the user has a new idea: acknowledge it, recommend where it fits (now vs. l
 
 If conversation drifts off-plan: "Want to slot that into a later phase, or explore it now?"
 
+### Between phases
+
+See **Phase Boundary Check-ins** below — at every phase boundary, do an energy check and an engagement check before starting the next phase.
+
 ### Visualizations during execution
 
-When a visualization would genuinely help (complex dependencies, state confusion, data flow questions), suggest it. Don't impose. Dispatch visualization generation to a subagent — pass it the tufte-visualize subskill instructions and the relevant template from `skills/pair-programming-rounds/templates/`.
+When a visualization would genuinely help (complex dependencies, state confusion, data flow questions), suggest it. Don't impose. Dispatch visualization generation to a subagent with:
+- Which visualization type to generate (e.g., dependency map, state machine)
+- The data to visualize or instructions on which code to analyze
+- The output path following the naming convention: `docs/visualizations/round-{N}-{context}-{type}.html`
+- A reminder to read the matching template from the plugin's `templates/` directory, replace `const DATA = {}` with the actual data, and fill in the text placeholders
 
-## Stage 3: Retro
+## Retro
 
 When all phases are done, run a quick retro (2-3 minutes, skippable):
 
@@ -215,7 +228,7 @@ At every phase boundary (the most reliable natural checkpoint), do two things:
 1. **Energy check:** "Ready for the next phase or want a break?"
 2. **Engagement check:** Ask one real question about the work so far — something that requires the user to think about what was built, not just confirm. Example: "Now that the data layer is done, does the API boundary we planned still make sense to you?"
 
-These replace all counting-based heuristics (consecutive approvals, brain-fry detection, session timers). Phase boundaries are the rhythm.
+Phase boundaries are the natural rhythm for these check-ins — no counting or timers needed.
 
 ## Cognitive Load Rules
 
@@ -229,7 +242,15 @@ These apply to ALL output:
 
 ## Adaptive Detail Level
 
-Three levels: **Concise** (Tier 1+2 only) | **Moderate** (default; Tier 3 for non-obvious decisions) | **Detailed** (Tier 3 for everything).
+Three levels control when Tier 3 appears:
+
+| Level | Tier 3 behavior |
+|---|---|
+| **Concise** | Never, unless user explicitly asks |
+| **Moderate** (default) | For architecturally significant changes |
+| **Detailed** | For every task completion |
+
+Tier 1 and Tier 2 always follow the rules in the Execute section regardless of detail level.
 
 The user says "more detail" or "less detail" at any time. Acknowledge and adjust immediately. Store in progress file. That's it — no auto-detection from implicit signals.
 
@@ -243,7 +264,7 @@ The user says "more detail" or "less detail" at any time. Acknowledge and adjust
 ---
 round: 2
 previous_round: docs/pair-progress-round-1.md
-status: executing
+status: executing  # brainstorming | executing | paused | complete | abandoned
 phase: 2
 phase_name: "Build API endpoints"
 total_phases: 3

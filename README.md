@@ -7,7 +7,7 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 - **Rounds** — Each round starts with collaborative brainstorming to shape the work
 - **Phases** — Work is broken into phases with tasks assigned to you, Claude, or both
 - **Retros** — Every round ends with a lightweight retrospective to tune working styles, ownership splits, and pacing
-- **Check-ins** — After every piece of work, Claude provides tiered summaries keeping you informed without overwhelming
+- **Check-ins** — Tiered summaries after each task (status line), at phase boundaries (compact view), and on request (full detail)
 - **Active engagement** — Claude uses recommend-and-probe patterns, always noting alternatives considered and asking real questions — not "sound good?"
 - **Subagent dispatch** — Claude manages the session and dispatches coding work to focused subagents, keeping its context clean for conversation
 - **Persistence** — Progress is saved to disk with YAML frontmatter so nothing gets lost between sessions or context compactions
@@ -27,10 +27,13 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 
 ### Optional: Live Dashboard
 
-The dashboard watches your progress file and renders a live view in your browser:
+The dashboard watches your progress file and renders a live view in your browser. To use it, you need to run it from the plugin's `tools/` directory (or copy `dashboard.js` and `package.json` somewhere convenient):
 
 ```bash
-cd tools
+# From the plugin directory:
+node tools/dashboard.js /path/to/your/project
+
+# Or if you copied the files:
 node dashboard.js /path/to/your/project
 ```
 
@@ -81,7 +84,7 @@ flowchart TD
     RP -->|no| Fresh[Fresh start]
     Resume --> Confirm[Confirm state with user]
     Confirm --> R
-    Fresh --> Explain[Explain Round > Phase > Task structure]
+    Fresh --> Explain[Explain structure:\nRounds contain Phases contain Tasks]
     Explain --> R
 
     subgraph R [Round]
@@ -102,7 +105,7 @@ flowchart TD
 
         P1 --> PhaseDone{All phases done?}
         PhaseDone -->|no, next phase| P1
-        PhaseDone -->|yes| Retro[Retro + energy check]
+        PhaseDone -->|yes| Retro[Retro + consolidation]
         Retro --> Save[Archive progress file]
     end
 
@@ -113,7 +116,7 @@ flowchart TD
 
 1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You agree on testing strategy and assign task ownership. Claude recommends one approach, notes alternatives.
 2. **Formalize** — Claude writes a formal implementation plan to `docs/plans/`. Uses `superpowers:writing-plans` if available, otherwise a built-in template.
-3. **Execute** — Claude dispatches coding tasks to subagents, reviews output, and presents tiered summaries. Phase boundary check-ins cover energy and engagement.
+3. **Execute** — Claude dispatches coding tasks to subagents, reviews output, and presents tiered summaries. At each phase boundary, Claude checks on energy and asks an engagement question about the work.
 4. **Retro** — Quick retrospective: what worked, what to adjust, preferences to carry forward.
 5. **Persist** — Progress saved to `docs/pair-progress.md` with YAML frontmatter. Completed rounds archived to `docs/pair-progress-round-N.md`.
 
@@ -124,6 +127,7 @@ The progress file uses YAML frontmatter (machine-readable) with a Markdown body 
 ```markdown
 ---
 round: 2
+previous_round: docs/pair-progress-round-1.md
 status: executing
 phase: 2
 phase_name: "Build API endpoints"
@@ -148,7 +152,15 @@ detail_level: moderate
 
 ## Open Items
 - Consider pagination for /users endpoint
-...
+
+## Testing Strategy
+- **Approach:** RED-GREEN TDD
+- **Libraries:** pytest, httpx
+- **Verification:** run test suite + manual curl against dev server
+
+## Ownership Preferences
+- User owns all database migration decisions
+- Detail level: moderate
 ```
 
 The YAML frontmatter enables the companion dashboard and any future tooling to parse session state without scraping Markdown.
