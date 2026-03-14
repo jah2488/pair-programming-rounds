@@ -8,6 +8,8 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 - **Phases** — Work is broken into phases with tasks assigned to you, Claude, or both
 - **Retros** — Every round ends with a lightweight retrospective to tune working styles, ownership splits, and pacing
 - **Check-ins** — Tiered summaries after each task (status line), at phase boundaries (compact view), and on request (full detail)
+- **Advanced brainstorming** — Goes beyond surface-level planning: challenges assumptions, explores edge cases, maps constraints, and identifies risks before any code is written
+- **Plan verification** — Every plan is checked against a 5-point checklist (completeness, ordering, ownership clarity, testability, scope match) before execution begins
 - **Active engagement** — Claude uses recommend-and-probe patterns, always noting alternatives considered and asking real questions — not "sound good?"
 - **Subagent dispatch** — Claude manages the session and dispatches coding work to focused subagents, keeping its context clean for conversation
 - **Persistence** — Progress is saved to disk with YAML frontmatter so nothing gets lost between sessions or context compactions
@@ -94,7 +96,9 @@ flowchart TD
         Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing}
         Checklist -->|no| Explore
         Checklist -->|yes| Formalize[Formalize plan\nto docs/plans/]
-        Formalize --> P1
+        Formalize --> Verify{Plan verified?\nComplete · Ordered · Owned\nTestable · Scoped}
+        Verify -->|issues| Formalize
+        Verify -->|yes| P1
 
         subgraph P1 [Phase]
             direction TB
@@ -114,8 +118,8 @@ flowchart TD
     More -->|no| Done[Done]
 ```
 
-1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You agree on testing strategy and assign task ownership. Claude recommends one approach, notes alternatives.
-2. **Formalize** — Claude writes a formal implementation plan to `docs/plans/`. Uses `superpowers:writing-plans` if available, otherwise a built-in template.
+1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You agree on testing strategy and assign task ownership. Claude recommends one approach, notes alternatives. Advanced brainstorming challenges assumptions, explores edge cases, maps constraints, and identifies risks.
+2. **Formalize** — Claude writes a formal implementation plan to `docs/plans/`, then runs a verification checklist (completeness, ordering, ownership, testability, scope) before execution begins.
 3. **Execute** — Claude dispatches coding tasks to subagents, reviews output, and presents tiered summaries. At each phase boundary, Claude checks on energy and asks an engagement question about the work.
 4. **Retro** — Quick retrospective: what worked, what to adjust, preferences to carry forward.
 5. **Persist** — Progress saved to `docs/pair-progress.md` with YAML frontmatter. Completed rounds archived to `docs/pair-progress-round-N.md`.
