@@ -8,6 +8,8 @@ A Claude Code plugin for structured pair programming. Instead of delegating work
 - **Phases** — Work is broken into phases with tasks assigned to you, Claude, or both
 - **Retros** — Every round ends with a lightweight retrospective to tune working styles, ownership splits, and pacing
 - **Check-ins** — Tiered summaries after each task (status line), at phase boundaries (compact view), and on request (full detail)
+- **Advanced brainstorming** — Goes beyond surface-level planning: challenges assumptions, explores edge cases, maps constraints, and identifies risks before any code is written
+- **Plan verification** — Every plan is checked against a 5-point checklist (completeness, ordering, ownership clarity, testability, scope match) before execution begins
 - **Active engagement** — Claude uses recommend-and-probe patterns, always noting alternatives considered and asking real questions — not "sound good?"
 - **Subagent dispatch** — Claude manages the session and dispatches coding work to focused subagents, keeping its context clean for conversation
 - **Persistence** — Progress is saved to disk with YAML frontmatter so nothing gets lost between sessions or context compactions

@@ -1,6 +1,6 @@
 ---
 name: pair-programming-rounds
-version: 4.0.0
+version: 4.1.0
 description: Use when starting a work session, picking up new tasks, or when the user wants to collaborate on implementation rather than delegate it entirely. Use when user says "let's pair", "let's work on", or starts a new feature/bugfix session. Structures work into rounds with explicit task ownership and subagent dispatch for implementation.
 ---
 
