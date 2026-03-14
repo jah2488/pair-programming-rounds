@@ -49,6 +49,18 @@ Cover:
 
 For structural decisions (data model shape, API boundaries, component hierarchy), the probe question should ask the user to articulate their reasoning: "Walk me through how you see these pieces fitting together."
 
+### Advanced Brainstorming
+
+Go beyond surface-level planning. Before brainstorming is complete, work through these with the user:
+
+**Challenge assumptions.** For each major decision, ask: "What are we assuming is true that might not be?" Name at least one assumption explicitly and probe whether it holds.
+
+**Explore edge cases.** For the primary feature/change, identify 2-3 edge cases or failure modes. Don't just list them — discuss how the design handles each one. If it doesn't, that's a task.
+
+**Map constraints.** Separate hard constraints (must) from soft constraints (should). Hard constraints shape the architecture; soft constraints shape the implementation. Make this distinction explicit so phases reflect it.
+
+**Identify risks.** Name the single highest-risk element of the plan — the thing most likely to cause rework. Discuss mitigation: can it be de-risked by tackling it first? By spiking? By limiting scope?
+
 **Testing strategy (confirm once per session):** Default to RED-GREEN TDD. Ask:
 - Integration tests? How often?
 - What verification methods beyond tests? (running the app, REPL, etc.)
@@ -60,6 +72,9 @@ For structural decisions (data model shape, API boundaries, component hierarchy)
 - [ ] Scope agreed (what's in, what's out)
 - [ ] Phases clarified (tasks grouped into ordered phases)
 - [ ] Approach explored (alternatives noted)
+- [ ] Assumptions challenged (at least one named and examined)
+- [ ] Edge cases identified (2-3 discussed)
+- [ ] Risks assessed (highest-risk element named)
 - [ ] Testing strategy agreed
 
 **Phase size guardrails:**
@@ -81,9 +96,7 @@ Every task needs an explicit owner. If ambiguous, discuss before work begins.
 
 ## Formalize the Plan
 
-When brainstorming is complete, write a formal plan to `docs/plans/`.
-
-**If `superpowers:writing-plans` is listed in your available skills, use it.** Otherwise, write the plan directly using this template:
+When brainstorming is complete, write a formal plan to `docs/plans/` using this template:
 
 ```markdown
 # [Feature/Task Name]
@@ -92,6 +105,13 @@ Round: [N]
 
 ## Goal
 [One sentence describing what this round achieves]
+
+## Assumptions
+- [Key assumptions from brainstorming — things we're treating as true]
+
+## Risks
+- **Highest risk:** [the element most likely to cause rework]
+- **Mitigation:** [how we're addressing it — ordering, spike, scope limit]
 
 ## Phases
 
@@ -102,6 +122,9 @@ Round: [N]
 
 ### Phase 2: [Name]
 ...
+
+## Edge Cases
+- [Edge cases identified during brainstorming and how the design handles them]
 
 ## Testing Strategy
 - **Approach:** [RED-GREEN TDD / other]
@@ -116,6 +139,29 @@ Round: [N]
 ```
 
 Every round gets a written plan. No ad-hoc planning.
+
+### Plan Verification
+
+After writing the plan, verify it before moving to execution. Walk through this checklist with the user:
+
+1. **Completeness** — Does every task from brainstorming appear in a phase? Are there orphaned ideas that need to be scoped in or explicitly cut?
+2. **Ordering** — Do phase dependencies make sense? Would reordering de-risk anything? Is the highest-risk work front-loaded where possible?
+3. **Ownership clarity** — Is every task assigned? Are "Both" tasks specific about who does what, or are they vague?
+4. **Testability** — Can each success criterion be verified concretely? If a criterion says "works correctly," push for specifics.
+5. **Scope match** — Does the plan match the scope agreed during brainstorming? Flag anything that grew or shrank without discussion.
+
+Present the checklist results to the user as a compact summary:
+
+```
+Plan verification:
+  ✓ All 12 tasks accounted for across 3 phases
+  ✓ Highest-risk work (auth integration) in Phase 1
+  ✓ All tasks have clear owners
+  ⚠ Success criterion "API works" — suggest: "all 6 endpoints return correct status codes and response shapes"
+  ✓ Scope matches brainstorming — nothing added or dropped
+```
+
+Fix any issues before starting execution. The plan is the contract for the round — it should be solid.
 
 ## Execute
 
@@ -351,6 +397,7 @@ You're doing it wrong if you:
 - Rush through brainstorming
 - Make architectural decisions without checking with the user
 - Skip writing the formal plan after brainstorming
+- Skip plan verification before starting execution
 - Dump code without a tiered summary
 - Separate explanation from the code it describes
 - Present 6+ items as a flat list without grouping

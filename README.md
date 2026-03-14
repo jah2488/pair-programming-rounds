@@ -94,7 +94,9 @@ flowchart TD
         Test --> Checklist{All checked?\nTasks · Owners · Scope\nPhases · Explored · Testing}
         Checklist -->|no| Explore
         Checklist -->|yes| Formalize[Formalize plan\nto docs/plans/]
-        Formalize --> P1
+        Formalize --> Verify{Plan verified?\nComplete · Ordered · Owned\nTestable · Scoped}
+        Verify -->|issues| Formalize
+        Verify -->|yes| P1
 
         subgraph P1 [Phase]
             direction TB
@@ -114,8 +116,8 @@ flowchart TD
     More -->|no| Done[Done]
 ```
 
-1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You agree on testing strategy and assign task ownership. Claude recommends one approach, notes alternatives.
-2. **Formalize** — Claude writes a formal implementation plan to `docs/plans/`. Uses `superpowers:writing-plans` if available, otherwise a built-in template.
+1. **Brainstorm** — Claude asks focused questions (max 2 per message) to understand the work. You agree on testing strategy and assign task ownership. Claude recommends one approach, notes alternatives. Advanced brainstorming challenges assumptions, explores edge cases, maps constraints, and identifies risks.
+2. **Formalize** — Claude writes a formal implementation plan to `docs/plans/`, then runs a verification checklist (completeness, ordering, ownership, testability, scope) before execution begins.
 3. **Execute** — Claude dispatches coding tasks to subagents, reviews output, and presents tiered summaries. At each phase boundary, Claude checks on energy and asks an engagement question about the work.
 4. **Retro** — Quick retrospective: what worked, what to adjust, preferences to carry forward.
 5. **Persist** — Progress saved to `docs/pair-progress.md` with YAML frontmatter. Completed rounds archived to `docs/pair-progress-round-N.md`.
